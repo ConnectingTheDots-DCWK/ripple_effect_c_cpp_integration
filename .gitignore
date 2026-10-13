@@ -1,0 +1,11 @@
+/out/
+/build/
+/_ripple_engine/
+CMakeUserPresets.json
+compile_commands.json
+.cache/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp

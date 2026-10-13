@@ -1,0 +1,38 @@
+This repository contains two kinds of software under two licences.
+
+1. The bindings — everything in this repository's source tree — are under the
+   MIT Licence:
+
+   MIT License
+
+   Copyright (c) 2026 William Karol Di Cioccio
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+2. The Ripple Effect engine these bindings link — the `ripple_effect_engine`
+   library and its header `ripple/ripple.h`, which the build downloads from
+   the engine's releases and never commits — is not part of this repository's
+   source and is not under the MIT Licence. It is © 2026 ConnectingTheDots, all rights reserved,
+   and licensed under the Ripple Effect Runtime Licence:
+   https://ripplefx.app/go/runtime-licence
+
+   That licence lets you redistribute it, unmodified in function, as part of
+   your own software, free of charge. Its notice — the `NOTICE` in every
+   engine archive, installed as `share/ripple_effect/ENGINE-NOTICE` — must be
+   reproduced wherever your product lists the third-party software it uses.
