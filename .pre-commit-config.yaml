@@ -1,0 +1,67 @@
+# Hooks for ripple_effect_c_cpp_integration.
+#
+#   pre-commit install --hook-type pre-commit --hook-type pre-push   once, per clone
+#   pre-commit run --all-files                                       to sweep the tree
+#
+# The secret scan is TruffleHog over what is staged, and a clone needs the
+# binary: https://github.com/trufflesecurity/trufflehog/releases, checked
+# against its checksums.txt, or `brew install trufflehog`. Without it the hook
+# fails and says so rather than letting the commit through unscanned. CI's
+# `.github/workflows/secrets.yml` runs the same scan over everything pushed.
+#
+# Formatting is checked, never applied: a hook that rewrites a file under you
+# turns one failed commit into two. `clang-format -i` and `cmake-format -i`
+# by hand.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+      - id: check-added-large-files
+        args: ['--maxkb=512']
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: ['--ignore-words-list=crate']
+
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+        args: ['--check']
+        additional_dependencies: [pyyaml]
+
+  - repo: local
+    hooks:
+      - id: trufflehog
+        name: secret scan
+        entry: bash tool/trufflehog/scan.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: clang-format
+        name: clang-format (check)
+        entry: clang-format --dry-run --Werror
+        language: system
+        types_or: [c, c++]
+
+      # The whole suite before a push, on the Linux preset: it needs the
+      # engine, so it runs when engine.json pins a release or
+      # RIPPLE_ENGINE_TREE names a checkout, and says it skipped otherwise.
+      - id: test
+        name: build and test (linux-clang)
+        entry: bash tool/pre_push.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

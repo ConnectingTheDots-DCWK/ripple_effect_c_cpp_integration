@@ -1,0 +1,19 @@
+# codexx_dtdk's style: Google's, with Allman braces, four spaces and a
+# hundred columns, for the C as well as the C++ (clang-format reads both as
+# one language). Checked by the hook and CI, never applied by them.
+BasedOnStyle: Google
+Standard: c++17
+ColumnLimit: 100
+IndentWidth: 4
+UseTab: Never
+AccessModifierOffset: -2
+BreakBeforeBraces: Allman
+PointerAlignment: Left
+DerivePointerAlignment: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+SpaceBeforeParens: ControlStatements
+ReflowComments: true

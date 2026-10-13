@@ -1,0 +1,100 @@
+{
+  "$comment": "The engine release this binding builds against: its version, the key its manifest is signed with, and the digest of every archive it may download. scripts/pin-engine.sh writes it from a verified manifest; nothing else should. A null digest means no release is pinned yet: configure with RIPPLE_ENGINE_TREE or RIPPLE_ENGINE_DIR instead.",
+  "engine": "1.5.1",
+  "contract": "1.5",
+  "keyId": null,
+  "urls": [
+    "https://ripplefx.app/go/engine/{tag}/{file}",
+    "https://github.com/ConnectingTheDots-DCWK/ripple_engine_releases/releases/download/{tag}/{file}"
+  ],
+  "archives": {
+    "python": {
+      "x86_64-unknown-linux-gnu": {
+        "file": "ripple-engine-c-1.5.1-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": null
+      },
+      "aarch64-unknown-linux-gnu": {
+        "file": "ripple-engine-c-1.5.1-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": null
+      },
+      "x86_64-apple-darwin": {
+        "file": "ripple-engine-c-1.5.1-x86_64-apple-darwin.tar.gz",
+        "sha256": null
+      },
+      "aarch64-apple-darwin": {
+        "file": "ripple-engine-c-1.5.1-aarch64-apple-darwin.tar.gz",
+        "sha256": null
+      },
+      "x86_64-pc-windows-msvc": {
+        "file": "ripple-engine-c-1.5.1-x86_64-pc-windows-msvc.tar.gz",
+        "sha256": null
+      },
+      "aarch64-pc-windows-msvc": {
+        "file": "ripple-engine-c-1.5.1-aarch64-pc-windows-msvc.tar.gz",
+        "sha256": null
+      },
+      "aarch64-linux-android": {
+        "file": "ripple-engine-c-1.5.1-aarch64-linux-android.tar.gz",
+        "sha256": null
+      },
+      "x86_64-linux-android": {
+        "file": "ripple-engine-c-1.5.1-x86_64-linux-android.tar.gz",
+        "sha256": null
+      },
+      "aarch64-apple-ios": {
+        "file": "ripple-engine-c-1.5.1-aarch64-apple-ios.tar.gz",
+        "sha256": null
+      },
+      "aarch64-apple-ios-sim": {
+        "file": "ripple-engine-c-1.5.1-aarch64-apple-ios-sim.tar.gz",
+        "sha256": null
+      }
+    },
+    "no-python": {
+      "x86_64-unknown-linux-gnu": {
+        "file": "ripple-engine-c-1.5.1-no-python-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": null
+      },
+      "aarch64-unknown-linux-gnu": {
+        "file": "ripple-engine-c-1.5.1-no-python-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": null
+      },
+      "x86_64-apple-darwin": {
+        "file": "ripple-engine-c-1.5.1-no-python-x86_64-apple-darwin.tar.gz",
+        "sha256": null
+      },
+      "aarch64-apple-darwin": {
+        "file": "ripple-engine-c-1.5.1-no-python-aarch64-apple-darwin.tar.gz",
+        "sha256": null
+      },
+      "x86_64-pc-windows-msvc": {
+        "file": "ripple-engine-c-1.5.1-no-python-x86_64-pc-windows-msvc.tar.gz",
+        "sha256": null
+      },
+      "aarch64-pc-windows-msvc": {
+        "file": "ripple-engine-c-1.5.1-no-python-aarch64-pc-windows-msvc.tar.gz",
+        "sha256": null
+      },
+      "aarch64-linux-android": {
+        "file": "ripple-engine-c-1.5.1-no-python-aarch64-linux-android.tar.gz",
+        "sha256": null
+      },
+      "x86_64-linux-android": {
+        "file": "ripple-engine-c-1.5.1-no-python-x86_64-linux-android.tar.gz",
+        "sha256": null
+      },
+      "aarch64-apple-ios": {
+        "file": "ripple-engine-c-1.5.1-no-python-aarch64-apple-ios.tar.gz",
+        "sha256": null
+      },
+      "aarch64-apple-ios-sim": {
+        "file": "ripple-engine-c-1.5.1-no-python-aarch64-apple-ios-sim.tar.gz",
+        "sha256": null
+      }
+    },
+    "conformance": {
+      "file": "ripple-conformance-1.5.1.tar.gz",
+      "sha256": null
+    }
+  }
+}

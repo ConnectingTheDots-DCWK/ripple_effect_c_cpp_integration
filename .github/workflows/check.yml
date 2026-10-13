@@ -1,0 +1,108 @@
+# What every push and pull request is held to: the formatting, then — once
+# engine.json pins a release — the pin's signature, and the whole suite on
+# Linux (GCC and Clang, both variants, shared and static, ASan), macOS and
+# Windows, plus an Android cross-build. The repository is public, so these
+# are GitHub's own runners.
+#
+# While no release is pinned (every digest null), there is no engine CI can
+# fetch — the engine's source is private — so everything past the formatting
+# is skipped with a notice. Locally, RIPPLE_ENGINE_TREE builds one.
+
+name: Check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: clang-format
+        run: |
+          git ls-files '*.c' '*.h' '*.cpp' '*.hpp' | xargs clang-format --dry-run --Werror
+      - name: cmake-format
+        run: |
+          pip install --quiet cmakelang==0.6.13 pyyaml
+          git ls-files 'CMakeLists.txt' '*/CMakeLists.txt' '*.cmake' | xargs cmake-format --check
+
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      pinned: ${{ steps.pin.outputs.pinned }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pin
+        name: Is a release pinned?
+        run: |
+          if jq -e '.keyId != null and ([.archives[] | .. | objects | select(has("sha256")) | .sha256] | all(. != null))' engine.json > /dev/null; then
+            echo "pinned=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pinned=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::engine.json pins no release yet; the build and the tests are skipped."
+          fi
+      - name: The pin is a signed release
+        if: steps.pin.outputs.pinned == 'true'
+        run: bash scripts/pin-engine.sh --verify
+
+  build:
+    needs: pin
+    if: needs.pin.outputs.pinned == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, preset: linux-gcc }
+          - { os: ubuntu-latest, preset: linux-clang, tidy: true }
+          - { os: ubuntu-latest, preset: linux-asan }
+          - { os: ubuntu-latest, preset: linux-static }
+          - { os: ubuntu-latest, preset: linux-no-python }
+          - { os: macos-latest, preset: macos-clang }
+          - { os: windows-latest, preset: windows-msvc }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: actions/cache@v4
+        with:
+          path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
+          key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+      - name: clang-tidy
+        if: matrix.tidy
+        run: |
+          git ls-files 'tests/*.cpp' 'tests/*.c' 'examples/*.cpp' 'examples/*.c' \
+            | xargs clang-tidy -p out/build/${{ matrix.preset }} --quiet
+
+  android:
+    needs: pin
+    if: needs.pin.outputs.pinned == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # Cross-compiled and linked against the engine's Android library; no
+      # emulator, because the engine's own release ran its suites on one.
+      - name: Configure and build
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+        run: |
+          cmake --preset android-arm64
+          cmake --build --preset android-arm64

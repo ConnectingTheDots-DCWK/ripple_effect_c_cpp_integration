@@ -1,0 +1,240 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "RIPPLE_WARNINGS_AS_ERRORS": "ON",
+        "RIPPLE_ENGINE_TREE": "$env{RIPPLE_ENGINE_TREE}",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-gcc",
+      "displayName": "Linux, GCC",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-clang",
+      "displayName": "Linux, Clang",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "linux-asan",
+      "displayName": "Linux, Clang, ASan and UBSan",
+      "inherits": "linux-clang",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "RIPPLE_SANITIZE": "address"
+      }
+    },
+    {
+      "name": "linux-static",
+      "displayName": "Linux, Clang, the static engine",
+      "inherits": "linux-clang",
+      "cacheVariables": {
+        "RIPPLE_ENGINE_SHARED": "OFF"
+      }
+    },
+    {
+      "name": "linux-no-python",
+      "displayName": "Linux, Clang, the no-python engine",
+      "inherits": "linux-clang",
+      "cacheVariables": {
+        "RIPPLE_ENGINE_PYTHON": "OFF"
+      }
+    },
+    {
+      "name": "macos-clang",
+      "displayName": "macOS, Apple Clang",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "12.0"
+      }
+    },
+    {
+      "name": "windows-msvc",
+      "displayName": "Windows, MSVC (from a developer prompt)",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      }
+    },
+    {
+      "name": "android-arm64",
+      "displayName": "Android arm64-v8a (cross; builds, does not test)",
+      "inherits": "base",
+      "toolchainFile": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
+      "cacheVariables": {
+        "ANDROID_ABI": "arm64-v8a",
+        "ANDROID_PLATFORM": "android-24",
+        "RIPPLE_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "ios-arm64",
+      "displayName": "iOS arm64 (cross; builds, does not test)",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "RIPPLE_BUILD_TESTS": "OFF",
+        "RIPPLE_BUILD_EXAMPLES": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-gcc",
+      "configurePreset": "linux-gcc"
+    },
+    {
+      "name": "linux-clang",
+      "configurePreset": "linux-clang"
+    },
+    {
+      "name": "linux-asan",
+      "configurePreset": "linux-asan"
+    },
+    {
+      "name": "linux-static",
+      "configurePreset": "linux-static"
+    },
+    {
+      "name": "linux-no-python",
+      "configurePreset": "linux-no-python"
+    },
+    {
+      "name": "macos-clang",
+      "configurePreset": "macos-clang"
+    },
+    {
+      "name": "windows-msvc",
+      "configurePreset": "windows-msvc"
+    },
+    {
+      "name": "android-arm64",
+      "configurePreset": "android-arm64"
+    },
+    {
+      "name": "ios-arm64",
+      "configurePreset": "ios-arm64"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-gcc",
+      "configurePreset": "linux-gcc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "linux-clang",
+      "configurePreset": "linux-clang",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "linux-asan",
+      "configurePreset": "linux-asan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "linux-static",
+      "configurePreset": "linux-static",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "linux-no-python",
+      "configurePreset": "linux-no-python",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "macos-clang",
+      "configurePreset": "macos-clang",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "windows-msvc",
+      "configurePreset": "windows-msvc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    }
+  ]
+}

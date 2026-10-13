@@ -1,0 +1,25 @@
+# The installed Ripple Effect bindings: `Ripple::engine`, the C library and
+# ripple.h, and `Ripple::cpp`, ripple.hpp over it. Written by
+# cmake/RippleInstall.cmake; the engine is @RIPPLE_ENGINE_VERSION@ for
+# @RIPPLE_ENGINE_TRIPLE@, @_ripple_variant@.
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/RippleImport.cmake")
+ripple_effect_import_engine(
+    SHARED @RIPPLE_CONFIG_SHARED@
+    INCLUDE "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@"
+    LIB "@PACKAGE_CMAKE_INSTALL_LIBDIR@"
+    RUNTIME "@PACKAGE_CMAKE_INSTALL_BINDIR@"
+    STATIC_LIBS "${CMAKE_CURRENT_LIST_DIR}/native-static-libs.txt")
+
+if(NOT TARGET Ripple::cpp)
+    add_library(Ripple::cpp INTERFACE IMPORTED)
+    set_target_properties(
+        Ripple::cpp PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@"
+                               INTERFACE_COMPILE_FEATURES cxx_std_17
+                               INTERFACE_LINK_LIBRARIES Ripple::engine)
+endif()
+
+set(RippleEffect_ENGINE_VERSION "@RIPPLE_ENGINE_VERSION@")
+set(RippleEffect_ENGINE_TRIPLE "@RIPPLE_ENGINE_TRIPLE@")
+check_required_components(RippleEffect)
