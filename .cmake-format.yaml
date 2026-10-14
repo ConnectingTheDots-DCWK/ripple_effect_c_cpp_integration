@@ -1,0 +1,9 @@
+# cmake-format (cmakelang 0.6.13), checked by the hook and CI, never applied
+# by them: `cmake-format -i` by hand.
+format:
+  line_width: 100
+  tab_size: 4
+  dangle_parens: false
+  max_subgroups_hwrap: 3
+markup:
+  enable_markup: false

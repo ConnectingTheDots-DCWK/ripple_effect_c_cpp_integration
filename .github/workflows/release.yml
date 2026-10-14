@@ -1,0 +1,101 @@
+# Cuts a release of the bindings: an annotated tag `v<version>` and a GitHub
+# release whose notes are the version's CHANGELOG section, with the source
+# tarball a FetchContent URL can pin by digest. Nothing is published anywhere
+# else — no package manager yet — so a consumer takes it as a submodule or
+# through FetchContent at the tag.
+#
+# Dispatched by hand on main. It refuses a version already tagged, a version
+# with no CHANGELOG section, a pin that is not a signed release, and a build
+# that does not pass on Linux, macOS and Windows.
+
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: On main
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::a release is cut from main, not $GITHUB_REF"; exit 1; }
+      - id: version
+        name: The version, untagged, with notes
+        run: |
+          version="$(sed -n 's/^ *VERSION \([0-9][0-9.]*\)$/\1/p' CMakeLists.txt | head -1)"
+          [ -n "$version" ] || { echo "::error::no VERSION in CMakeLists.txt's project()"; exit 1; }
+          if git rev-parse "v$version" >/dev/null 2>&1; then
+            echo "::error::v$version is already tagged; bump project(VERSION) first"; exit 1
+          fi
+          awk -v v="$version" '$0 == "## " v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::CHANGELOG.md has no ## $version section"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: The pin is a signed release
+        run: bash scripts/pin-engine.sh --verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes
+          path: notes.md
+
+  build:
+    needs: preflight
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, preset: linux-clang }
+          - { os: ubuntu-latest, preset: linux-no-python }
+          - { os: macos-latest, preset: macos-clang }
+          - { os: windows-latest, preset: windows-msvc }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Build and test
+        run: |
+          cmake --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }}
+          ctest --preset ${{ matrix.preset }}
+      - name: Refuses an unverified engine
+        shell: bash
+        run: |
+          if find out/build -name UNVERIFIED | grep -q .; then
+            echo "::error::the engine came from a development tree"; exit 1
+          fi
+
+  release:
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: notes
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "ripple_effect_c_cpp_integration $VERSION"
+          git push origin "v$VERSION"
+          git archive --format=tar.gz --prefix="ripple_effect_c_cpp_integration-$VERSION/" \
+            -o "ripple_effect_c_cpp_integration-$VERSION.tar.gz" "v$VERSION"
+          sha256sum "ripple_effect_c_cpp_integration-$VERSION.tar.gz" > SHA256SUMS
+          flags=()
+          case "$VERSION" in *-*) flags+=(--prerelease) ;; esac
+          gh release create "v$VERSION" "${flags[@]}" --title "$VERSION" --notes-file notes.md \
+            "ripple_effect_c_cpp_integration-$VERSION.tar.gz" SHA256SUMS

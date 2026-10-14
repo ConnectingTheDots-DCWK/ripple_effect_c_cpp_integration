@@ -1,0 +1,24 @@
+# Trimmed to what has paid for itself: the analyzer, bug-prone patterns,
+# performance, and the modernize checks that do not fight C++17. Not
+# enum-size: every enum in ripple.hpp is the C header's uint32_t tag, on
+# purpose. Every
+# warning is an error in CI, so a check here is one somebody acts on.
+Checks: >
+  -*,
+  clang-analyzer-*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  performance-*,
+  -performance-enum-size,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-emplace,
+  modernize-make-unique,
+  misc-unused-using-decls,
+  misc-redundant-expression,
+  readability-container-size-empty,
+  readability-redundant-string-cstr
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'include/ripple/ripple\.hpp'
+FormatStyle: file
