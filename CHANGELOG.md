@@ -6,8 +6,7 @@
 ## 1.5.0
 
 - **The C ABI and a C++17 layer over it**, binding contract 1.5 and pinning
-  engine 1.5.1, the first release that carries the C ABI. `Ripple::engine`
-  is `ripple/ripple.h` over the shared or static library; `Ripple::cpp` adds
+  engine 1.5.2. `Ripple::engine` is `ripple/ripple.h` over the shared or static library; `Ripple::cpp` adds
   `ripple/ripple.hpp`: `Campaign`, `Session` and `Mixer` handles, `Value`,
   the `Effect` variant, and exceptions or `Result<T>` under
   `RIPPLE_HPP_NO_EXCEPTIONS`.

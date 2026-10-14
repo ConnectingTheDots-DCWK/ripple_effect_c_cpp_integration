@@ -85,9 +85,7 @@ takes any 1.5.x and nothing else.
   `$ORIGIN` RPATH, or link statically.
 - **macOS** (x86_64, arm64), 12.0 and up: one architecture per configure; the
   release has no universal library, so build twice and `lipo`. The dylib's
-  install name is `@rpath/libripple_effect_engine.dylib` **from engine
-  1.5.2**; engine 1.5.1's names the path it was built at, so with 1.5.1 link
-  statically on macOS (`-DRIPPLE_ENGINE_SHARED=OFF`).
+  install name is `@rpath/libripple_effect_engine.dylib`.
 - **Windows** (x64, arm64): MSVC's ABI only. The shared engine is a DLL with
   an import library; `ripple_effect_copy_runtime(<target>)` copies the DLL
   beside an executable after it links. The static library is built against
