@@ -100,9 +100,10 @@ jobs:
       - uses: actions/checkout@v4
       # Cross-compiled and linked against the engine's Android library; no
       # emulator, because the engine's own release ran its suites on one.
+      # ANDROID_NDK_LATEST_HOME is the runner image's environment, which the
+      # workflow's `env` context cannot see: read it in the shell.
       - name: Configure and build
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
         run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
           cmake --preset android-arm64
           cmake --build --preset android-arm64
