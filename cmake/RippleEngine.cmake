@@ -80,6 +80,11 @@ function(_ripple_triple out)
             set(arch aarch64)
         endif()
         set(triple ${arch}-pc-windows-msvc)
+    elseif(EMSCRIPTEN)
+        # A page built with Emscripten 4.0 or later, single-threaded: the
+        # archive is a static library and nothing else (docs/consuming.md).
+        set(arch wasm32)
+        set(triple wasm32-unknown-emscripten)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(triple ${arch}-unknown-linux-gnu)
     endif()
@@ -100,8 +105,9 @@ else()
     set(_ripple_variant no-python)
 endif()
 
-if(RIPPLE_ENGINE_TRIPLE MATCHES "apple-ios")
-    # iOS links statically or not at all: the archive carries no dylib.
+if(RIPPLE_ENGINE_TRIPLE MATCHES "apple-ios|emscripten")
+    # iOS and Emscripten link statically or not at all: their archives carry
+    # no shared library.
     set(RIPPLE_ENGINE_SHARED OFF)
 endif()
 

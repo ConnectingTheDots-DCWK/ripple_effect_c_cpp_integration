@@ -53,7 +53,7 @@ include(FetchContent)
 FetchContent_Declare(
     ripple_effect
     GIT_REPOSITORY https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration
-    GIT_TAG v1.5.0)
+    GIT_TAG v1.5.1)
 FetchContent_MakeAvailable(ripple_effect)
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
@@ -61,14 +61,15 @@ target_link_libraries(my_game PRIVATE Ripple::cpp)
 The configure step downloads the engine for the target you are building and
 refuses it unless its digest is the one this repository pins. No package
 manager yet; vcpkg and Conan are candidates. Static or shared, with or
-without Python, cross-compiling, Windows DLLs, offline builds and
-`find_package` are all in [`docs/consuming.md`](docs/consuming.md).
+without Python, cross-compiling, Windows DLLs, the web through Emscripten,
+offline builds and `find_package` are all in
+[`docs/consuming.md`](docs/consuming.md).
 
 **The engine is released on its own.** Each release of these bindings pins
 one engine release, `engine-v<version>` of the public
 [ripple_engine_releases](https://github.com/ConnectingTheDots-DCWK/ripple_engine_releases),
 whose signed manifest names every archive. A version here is the engine's
-contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.5.0 binds contract 1.5.
+contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.5.1 binds contract 1.5.
 
 ## Working on it
 

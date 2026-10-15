@@ -8,6 +8,16 @@
 #   values        a value through the arena and back
 
 include(FetchContent)
+# Emscripten catches no exception unless asked, and these tests expect the
+# throwing ripple.hpp and GoogleTest's own. Every object in one link has to
+# agree on how, so the whole directory says so, GoogleTest included — the
+# tests' choice, not a host's: the engine itself asks for none. setjmp has to
+# be the wasm one alongside: Emscripten 4.0.10 refuses wasm exceptions with
+# its default JavaScript setjmp, where later ones switch it themselves.
+if(EMSCRIPTEN)
+    add_compile_options(-fwasm-exceptions -sSUPPORT_LONGJMP=wasm)
+    add_link_options(-fwasm-exceptions -sSUPPORT_LONGJMP=wasm)
+endif()
 # Pinned by digest, the way the engine is: a test dependency is code that runs
 # on every machine that builds this, CI's included.
 FetchContent_Declare(
@@ -25,6 +35,13 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(JSON_Install OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest nlohmann_json)
+# Its headers are a dependency's, so this repository's warnings stop at them:
+# on a 32-bit target (Emscripten) its serializer converts an `unsigned` to a
+# `long` that -Wsign-conversion reports. FetchContent's SYSTEM is 3.25's, one
+# past the floor, so the include directories are marked by hand.
+get_target_property(_ripple_json_includes nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(nlohmann_json PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
+                                               "${_ripple_json_includes}")
 include(GoogleTest)
 
 ripple_engine_fixtures(RIPPLE_FIXTURES)

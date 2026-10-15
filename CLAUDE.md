@@ -42,6 +42,9 @@ to build against.
 cmake --preset linux-clang && cmake --build --preset linux-clang && ctest --preset linux-clang
 cmake --preset linux-asan  && cmake --build --preset linux-asan  && ctest --preset linux-asan
 # and linux-gcc, linux-static, linux-no-python; macos-clang; windows-msvc
+# the web, from an activated emsdk (4.0 or later), run under node:
+cmake --preset emscripten && cmake --build --preset emscripten && ctest --preset emscripten
+# and emscripten-no-python
 ```
 
 The suite plays every conformance fixture of the pinned release through
@@ -109,6 +112,18 @@ instantiated.
   optional.
 - **clang-format 18 has no `Language: C`**: one style formats both, Allman.
 - **CMake presets version 5** is the newest CMake 3.24 reads; 6 needs 3.25.
+- **Emscripten wants one exception model per link.** The tests compile with
+  `-fwasm-exceptions` directory-wide, GoogleTest included; set on the test
+  executable alone, GoogleTest's objects were the other model and the link
+  failed on `__resumeException`. The engine's archive asks for none. And
+  `-sSUPPORT_LONGJMP=wasm` beside it: Emscripten 4.0.10 refuses wasm
+  exceptions with its default JavaScript setjmp; later ones switch it alone.
+- **nlohmann/json warns on a 32-bit target.** Its serializer converts an
+  `unsigned` to a `long` under `-Wsign-conversion`; its includes are marked
+  SYSTEM by hand, because FetchContent's `SYSTEM` is CMake 3.25's.
+- **Emscripten before 4.0 is not a target**, and 3.1.38 fails silently — it
+  links, then cannot open a folder. `docs/consuming.md` says so; a CI leg on
+  an older emsdk would be testing a promise the engine does not make.
 
 ## What is deliberately not here
 

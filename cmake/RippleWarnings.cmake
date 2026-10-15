@@ -7,6 +7,8 @@
 #
 # RIPPLE_WARNINGS_AS_ERRORS makes every warning an error; RIPPLE_SANITIZE
 # (`address` or `thread`) adds the sanitizer to the compile and the link.
+# Under Emscripten each target is also linked to run under node against the
+# real filesystem, which is how ctest runs it and how a fixture is read.
 
 include_guard(GLOBAL)
 
@@ -31,6 +33,9 @@ function(ripple_effect_warnings target)
         if(RIPPLE_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE -Werror)
         endif()
+    endif()
+    if(EMSCRIPTEN)
+        target_link_options(${target} PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1)
     endif()
     if(RIPPLE_SANITIZE STREQUAL "address")
         if(MSVC)

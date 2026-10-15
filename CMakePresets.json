@@ -125,6 +125,20 @@
         "RIPPLE_BUILD_TESTS": "OFF",
         "RIPPLE_BUILD_EXAMPLES": "OFF"
       }
+    },
+    {
+      "name": "emscripten",
+      "displayName": "Emscripten 4.0 or later (from an activated emsdk); tests run under node",
+      "inherits": "base",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
+    },
+    {
+      "name": "emscripten-no-python",
+      "displayName": "Emscripten, the no-python engine",
+      "inherits": "emscripten",
+      "cacheVariables": {
+        "RIPPLE_ENGINE_PYTHON": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -163,6 +177,14 @@
     {
       "name": "ios-arm64",
       "configurePreset": "ios-arm64"
+    },
+    {
+      "name": "emscripten",
+      "configurePreset": "emscripten"
+    },
+    {
+      "name": "emscripten-no-python",
+      "configurePreset": "emscripten-no-python"
     }
   ],
   "testPresets": [
@@ -229,6 +251,26 @@
     {
       "name": "windows-msvc",
       "configurePreset": "windows-msvc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "emscripten",
+      "configurePreset": "emscripten",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "emscripten-no-python",
+      "configurePreset": "emscripten-no-python",
       "output": {
         "outputOnFailure": true
       },

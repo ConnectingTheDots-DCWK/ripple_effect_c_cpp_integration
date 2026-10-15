@@ -11,4 +11,10 @@ ripple_effect_copy_runtime(ripple_c_player)
 add_executable(ripple_cpp_player cpp_player/main.cpp)
 target_link_libraries(ripple_cpp_player PRIVATE Ripple::cpp)
 ripple_effect_warnings(ripple_cpp_player)
+if(EMSCRIPTEN)
+    # So the player reports a refusal rather than aborting on it.
+    # Wasm setjmp beside it, which Emscripten 4.0.10 does not pick for itself.
+    target_compile_options(ripple_cpp_player PRIVATE -fwasm-exceptions -sSUPPORT_LONGJMP=wasm)
+    target_link_options(ripple_cpp_player PRIVATE -fwasm-exceptions -sSUPPORT_LONGJMP=wasm)
+endif()
 ripple_effect_copy_runtime(ripple_cpp_player)

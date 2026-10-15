@@ -1,8 +1,8 @@
 # What every push and pull request is held to: the formatting, then — once
 # engine.json pins a release — the pin's signature, and the whole suite on
 # Linux (GCC and Clang, both variants, shared and static, ASan), macOS and
-# Windows, plus an Android cross-build. The repository is public, so these
-# are GitHub's own runners.
+# Windows, plus an Android cross-build and Emscripten under node. The
+# repository is public, so these are GitHub's own runners.
 #
 # While no release is pinned (every digest null), there is no engine CI can
 # fetch — the engine's source is private — so everything past the formatting
@@ -90,6 +90,37 @@ jobs:
         run: |
           git ls-files 'tests/*.cpp' 'tests/*.c' 'examples/*.cpp' 'examples/*.c' \
             | xargs clang-tidy -p out/build/${{ matrix.preset }} --quiet
+
+  # The engine for a page built with Emscripten, played under node by the
+  # oldest Emscripten the archive supports and the newest it was built with —
+  # the floor is the engine's (docs/consuming.md, *On the web*).
+  emscripten:
+    needs: pin
+    if: needs.pin.outputs.pinned == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        emsdk: ["4.0.10", "6.0.12"]
+        preset: [emscripten, emscripten-no-python]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
+          key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
+      - name: emsdk ${{ matrix.emsdk }}
+        run: |
+          git clone --quiet --depth 1 --branch "${{ matrix.emsdk }}" https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install "${{ matrix.emsdk }}" > /dev/null
+          "$RUNNER_TEMP/emsdk/emsdk" activate "${{ matrix.emsdk }}" > /dev/null
+      - name: Configure, build and test under node
+        run: |
+          EMSDK_QUIET=1 source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          cmake --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }}
+          ctest --preset ${{ matrix.preset }}
 
   android:
     needs: pin

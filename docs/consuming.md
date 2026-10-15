@@ -15,7 +15,7 @@ targets:
 
 ```sh
 git submodule add https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration third_party/ripple_effect
-git -C third_party/ripple_effect checkout v1.5.0
+git -C third_party/ripple_effect checkout v1.5.1
 ```
 
 ```cmake
@@ -31,7 +31,7 @@ include(FetchContent)
 FetchContent_Declare(
     ripple_effect
     GIT_REPOSITORY https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration
-    GIT_TAG v1.5.0)
+    GIT_TAG v1.5.1)
 FetchContent_MakeAvailable(ripple_effect)
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
@@ -41,7 +41,7 @@ Or the release's source tarball, pinned by the digest in its `SHA256SUMS`:
 ```cmake
 FetchContent_Declare(
     ripple_effect
-    URL https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration/releases/download/v1.5.0/ripple_effect_c_cpp_integration-1.5.0.tar.gz
+    URL https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration/releases/download/v1.5.1/ripple_effect_c_cpp_integration-1.5.1.tar.gz
     URL_HASH SHA256=<from SHA256SUMS>)
 ```
 
@@ -72,7 +72,7 @@ takes any 1.5.x and nothing else.
 | Option | Default | What it does |
 | --- | --- | --- |
 | `RIPPLE_ENGINE_PYTHON` | `ON` | The engine with the Python interpreter. `OFF` links the `no-python` one — about half the size — which refuses a campaign that needs Python at open (`RIPPLE_ERROR_NEEDS_PYTHON`). The editor's *Needs no Python* export is checked for exactly that host. |
-| `RIPPLE_ENGINE_SHARED` | `ON` | The shared library. `OFF` links the static one, and with it the system libraries its archive lists (`lib/native-static-libs.txt`). Forced `OFF` on iOS. |
+| `RIPPLE_ENGINE_SHARED` | `ON` | The shared library. `OFF` links the static one, and with it the system libraries its archive lists (`lib/native-static-libs.txt`). Forced `OFF` on iOS and under Emscripten. |
 | `RIPPLE_ENGINE_TARGET` | worked out | The engine's triple, for a toolchain the configure cannot name. |
 | `RIPPLE_ENGINE_DIR` | — | An unpacked `ripple-engine-c` archive: offline, vendored, or audited by your own process. Nothing is downloaded. |
 | `RIPPLE_ENGINE_CACHE` | the build tree | Where downloaded archives are kept, to share them between build trees. |
@@ -94,6 +94,42 @@ takes any 1.5.x and nothing else.
   file. The `.so` goes in your APK's `jniLibs`; the static library links
   into your own native library instead.
 - **iOS** (device, arm64 simulator), 13.0 and up: static only.
+- **The web, through Emscripten**: see below.
+
+## On the web
+
+A program compiled to the browser with Emscripten links the engine as a
+static library: a C++ engine built for the web, Unity WebGL, .NET in the
+browser. Configure with Emscripten's toolchain file, `emcmake cmake` or the
+`emscripten` preset, and the archive for `wasm32-unknown-emscripten` is the
+one fetched. From engine 1.5.3.
+
+- **Emscripten 4.0 or later.** Each release is linked and played with
+  4.0.10, 4.0.19 and the newest it was built with. Older ones fail, two ways:
+  before 4.0 the optimiser rejects a feature the engine's objects carry, and
+  **3.1.38 links and then cannot open a bundle's folder**, because its libc's
+  file structures are not the ones the engine was compiled for. Nothing
+  reports that one. **Unity 6000.0 to 6000.4 bundle 3.1.38 and are not
+  supported; Unity 6000.5 and later bundle 4.0.19 and are.** Unity wants a
+  plugin built with its own Emscripten: the archive's `.a` is the plugin.
+- **Single-threaded.** A program linked with `-pthread` refuses the
+  library: shared memory needs every object compiled with atomics, and the
+  engine's standard library is not.
+- **No exception flag is asked of you.** On this target a panic inside the
+  engine aborts the module rather than unwinding, so it links into a program
+  built with no flag, `-fexceptions` or `-fwasm-exceptions` alike. It also
+  means a trap is not recoverable here as it is natively: the module ends,
+  and the page reopens and resumes from its last checkpoint.
+- **Open a campaign from memory.** A page has no folder to hand
+  `ripple_campaign_open_dir`; fetch the bundle's files and pass them to
+  `ripple_campaign_open_memory`. A folder works where one exists, under
+  `-sNODERAWFS` or in Emscripten's virtual filesystem.
+- **Size.** A linked program with the interpreter is about 5.4 MB of
+  WebAssembly, 2.0 MB gzipped; without it, about 0.8 MB and 0.3 MB.
+
+This repository's own tests run the same way, under node
+(`ctest --preset emscripten`), against both variants and the oldest and
+newest Emscripten supported.
 
 The engine archive's `NOTICE` must be reproduced wherever your product lists
 the third-party software it contains: the Ripple Effect Runtime Licence asks
