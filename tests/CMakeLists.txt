@@ -53,7 +53,10 @@ target_link_libraries(ripple_tests PRIVATE Ripple::cpp GTest::gtest_main
 target_compile_definitions(ripple_tests PRIVATE RIPPLE_FIXTURES="${RIPPLE_FIXTURES}")
 ripple_effect_warnings(ripple_tests)
 ripple_effect_copy_runtime(ripple_tests)
-gtest_discover_tests(ripple_tests DISCOVERY_TIMEOUT 60 DISCOVERY_MODE PRE_TEST)
+# Discovery runs the test binary once to enumerate its cases; under the iOS
+# simulator's crosscompiling emulator the first `simctl spawn` pays Core
+# Simulator's cold start, which on a slow runner overran the old 60s ceiling.
+gtest_discover_tests(ripple_tests DISCOVERY_TIMEOUT 300 DISCOVERY_MODE PRE_TEST)
 
 # The C header alone, in the oldest C it promises, with every warning an
 # error: proof that a host with no C++ at all can play a story.

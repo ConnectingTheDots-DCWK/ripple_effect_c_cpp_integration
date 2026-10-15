@@ -171,6 +171,9 @@ jobs:
           echo "Booting $udid"
           xcrun simctl boot "$udid" || true
           xcrun simctl bootstatus "$udid" -b
+          # Warm Core Simulator's spawn path so test discovery's first spawn
+          # does not pay the cold start inside its timeout.
+          xcrun simctl spawn booted /usr/bin/true || true
       - name: Configure
         run: cmake --preset ${{ matrix.preset }}
       - name: Build
