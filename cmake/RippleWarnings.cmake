@@ -32,6 +32,14 @@ function(ripple_effect_warnings target)
                     -Woverloaded-virtual>)
         if(RIPPLE_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE -Werror)
+            if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+                # A newer Xcode's libc++ emits a deprecation `#warning` when the
+                # iOS deployment floor is below what it still supports (15.0 in
+                # Xcode 27), and the engine's floor is 13.0. That notice is the
+                # SDK's, not this binding's code, so -Werror must not turn it
+                # into the iOS leg's failure; every real warning stays an error.
+                target_compile_options(${target} PRIVATE "-Wno-error=#warnings")
+            endif()
         endif()
     endif()
     if(EMSCRIPTEN)

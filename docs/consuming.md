@@ -15,7 +15,7 @@ targets:
 
 ```sh
 git submodule add https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration third_party/ripple_effect
-git -C third_party/ripple_effect checkout v1.5.1
+git -C third_party/ripple_effect checkout v1.5.2
 ```
 
 ```cmake
@@ -31,7 +31,7 @@ include(FetchContent)
 FetchContent_Declare(
     ripple_effect
     GIT_REPOSITORY https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration
-    GIT_TAG v1.5.1)
+    GIT_TAG v1.5.2)
 FetchContent_MakeAvailable(ripple_effect)
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
@@ -41,7 +41,7 @@ Or the release's source tarball, pinned by the digest in its `SHA256SUMS`:
 ```cmake
 FetchContent_Declare(
     ripple_effect
-    URL https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration/releases/download/v1.5.1/ripple_effect_c_cpp_integration-1.5.1.tar.gz
+    URL https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration/releases/download/v1.5.2/ripple_effect_c_cpp_integration-1.5.2.tar.gz
     URL_HASH SHA256=<from SHA256SUMS>)
 ```
 
@@ -93,7 +93,13 @@ takes any 1.5.x and nothing else.
 - **Android** (arm64-v8a, x86_64), API 24 and up, with the NDK's toolchain
   file. The `.so` goes in your APK's `jniLibs`; the static library links
   into your own native library instead.
-- **iOS** (device, arm64 simulator), 13.0 and up: static only.
+- **iOS** (device and arm64 simulator), 13.0 and up: static only — the engine
+  ships no shared library for iOS, so `RIPPLE_ENGINE_SHARED` is forced `OFF`.
+  A configure with `CMAKE_SYSTEM_NAME=iOS` fetches the `aarch64-apple-ios`
+  archive; add `CMAKE_OSX_SYSROOT=iphonesimulator` and it fetches
+  `aarch64-apple-ios-sim` instead. The `ios-arm64` and `ios-simulator` presets
+  are those two. A simulator runtime's own minimum may raise the built
+  deployment target above 13.0.
 - **The web, through Emscripten**: see below.
 
 ## On the web

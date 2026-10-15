@@ -111,7 +111,7 @@
     },
     {
       "name": "ios-arm64",
-      "displayName": "iOS arm64 (cross; builds, does not test)",
+      "displayName": "iOS device arm64 (cross; builds and links the examples, does not test)",
       "inherits": "base",
       "condition": {
         "type": "equals",
@@ -122,8 +122,17 @@
         "CMAKE_SYSTEM_NAME": "iOS",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
-        "RIPPLE_BUILD_TESTS": "OFF",
-        "RIPPLE_BUILD_EXAMPLES": "OFF"
+        "RIPPLE_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "ios-simulator",
+      "displayName": "iOS simulator arm64 (cross; builds the examples and runs the suite on a booted simulator)",
+      "inherits": "ios-arm64",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphonesimulator",
+        "RIPPLE_BUILD_TESTS": "ON",
+        "CMAKE_CROSSCOMPILING_EMULATOR": "xcrun;simctl;spawn;booted"
       }
     },
     {
@@ -177,6 +186,10 @@
     {
       "name": "ios-arm64",
       "configurePreset": "ios-arm64"
+    },
+    {
+      "name": "ios-simulator",
+      "configurePreset": "ios-simulator"
     },
     {
       "name": "emscripten",
@@ -251,6 +264,16 @@
     {
       "name": "windows-msvc",
       "configurePreset": "windows-msvc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "ios-simulator",
+      "configurePreset": "ios-simulator",
       "output": {
         "outputOnFailure": true
       },
