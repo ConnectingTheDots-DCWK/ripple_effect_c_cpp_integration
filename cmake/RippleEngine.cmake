@@ -56,6 +56,10 @@ function(_ripple_triple out)
                                 "Android, not ${ANDROID_ABI}.")
         endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        # A cross-configure for iOS leaves CMAKE_SYSTEM_PROCESSOR empty, so the
+        # top block never set `arch`; the engine ships arm64 only here, device
+        # and simulator alike, so name it rather than leaning on the guard.
+        set(arch aarch64)
         if(CMAKE_OSX_SYSROOT MATCHES "[Ss]imulator")
             set(triple aarch64-apple-ios-sim)
         else()

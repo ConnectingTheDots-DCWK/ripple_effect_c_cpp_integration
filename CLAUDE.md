@@ -42,6 +42,10 @@ to build against.
 cmake --preset linux-clang && cmake --build --preset linux-clang && ctest --preset linux-clang
 cmake --preset linux-asan  && cmake --build --preset linux-asan  && ctest --preset linux-asan
 # and linux-gcc, linux-static, linux-no-python; macos-clang; windows-msvc
+# iOS, on a Mac: the device leg only links; the simulator leg runs the suite on
+# a booted simulator (xcrun simctl boot <a device>, then the preset's emulator):
+cmake --preset ios-arm64     && cmake --build --preset ios-arm64
+cmake --preset ios-simulator && cmake --build --preset ios-simulator && ctest --preset ios-simulator
 # the web, from an activated emsdk (4.0 or later), run under node:
 cmake --preset emscripten && cmake --build --preset emscripten && ctest --preset emscripten
 # and emscripten-no-python
@@ -124,6 +128,30 @@ instantiated.
 - **Emscripten before 4.0 is not a target**, and 3.1.38 fails silently — it
   links, then cannot open a folder. `docs/consuming.md` says so; a CI leg on
   an older emsdk would be testing a promise the engine does not make.
+- **A cross-configure for iOS leaves `CMAKE_SYSTEM_PROCESSOR` empty**, so
+  `_ripple_triple` never derives `arch` from it the way it does for Android,
+  whose NDK toolchain fills it in. The iOS branch names `arch aarch64` itself;
+  without it the triple is right but the final `NOT arch` guard refuses the
+  configure. iOS ships arm64 only here, device and simulator alike.
+- **A newer Xcode's libc++ trips the iOS build.** From Xcode 27 its
+  `availability.h` raises the iOS floor to 15.0 and emits a `#warning` that the
+  selected platform is no longer supported whenever the deployment target is
+  below it — and the engine's floor, which the presets match, is 13.0. The
+  warnings build (`RIPPLE_WARNINGS_AS_ERRORS`) would turn that SDK notice into
+  the iOS leg's failure, so `RippleWarnings.cmake` adds `-Wno-error=#warnings`
+  for `CMAKE_SYSTEM_NAME` iOS alone; every real warning stays an error. macOS
+  escapes it (its libc++ floor is 11.0 and the preset targets 12.0). The `#`
+  in that flag must be quoted in CMake, or it starts a comment.
+- **The simulator leg hangs if the build tree is under a TCC-protected
+  folder.** `ctest --preset ios-simulator` spawns each test inside the
+  simulator with `simctl spawn booted`, and a spawned process reading
+  `~/Desktop`, `~/Documents` or `~/Downloads` stalls on a macOS privacy
+  (TCC) consent gate that never resolves headlessly — so the fixture-reading
+  conformance tests hang for ever while the driver and values tests, which
+  touch no files, pass. Link legs and the build are fine; only the simulator
+  `ctest` reads fixtures at run time. Clone and build outside those folders
+  (`~/dev`, `/tmp`) to run it locally. CI is unaffected: its checkout is under
+  `/Users/runner/work`, which TCC does not guard.
 
 ## What is deliberately not here
 

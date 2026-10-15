@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
     RippleEffect
-    VERSION 1.5.1
+    VERSION 1.5.2
     DESCRIPTION "C and C++ bindings of the Ripple Effect engine"
     HOMEPAGE_URL "https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration"
     LANGUAGES C CXX)

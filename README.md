@@ -53,7 +53,7 @@ include(FetchContent)
 FetchContent_Declare(
     ripple_effect
     GIT_REPOSITORY https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration
-    GIT_TAG v1.5.1)
+    GIT_TAG v1.5.2)
 FetchContent_MakeAvailable(ripple_effect)
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
@@ -69,7 +69,7 @@ offline builds and `find_package` are all in
 one engine release, `engine-v<version>` of the public
 [ripple_engine_releases](https://github.com/ConnectingTheDots-DCWK/ripple_engine_releases),
 whose signed manifest names every archive. A version here is the engine's
-contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.5.1 binds contract 1.5.
+contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.5.2 binds contract 1.5.
 
 ## Working on it
 
