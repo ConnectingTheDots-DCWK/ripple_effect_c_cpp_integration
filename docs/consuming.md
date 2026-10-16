@@ -105,9 +105,9 @@ takes any 1.5.x and nothing else.
 ## On the web
 
 A program compiled to the browser with Emscripten links the engine as a
-static library: a C++ engine built for the web, Unity WebGL, .NET in the
-browser. Configure with Emscripten's toolchain file, `emcmake cmake` or the
-`emscripten` preset, and the archive for `wasm32-unknown-emscripten` is the
+static library: a C++ engine built for the web, or Unity WebGL. Configure
+with Emscripten's toolchain file, `emcmake cmake` or the `emscripten` preset,
+and the archive for `wasm32-unknown-emscripten` is the
 one fetched. From engine 1.5.3.
 
 - **Emscripten 4.0 or later.** Each release is linked and played with
@@ -118,6 +118,9 @@ one fetched. From engine 1.5.3.
   reports that one. **Unity 6000.0 to 6000.4 bundle 3.1.38 and are not
   supported; Unity 6000.5 and later bundle 4.0.19 and are.** Unity wants a
   plugin built with its own Emscripten: the archive's `.a` is the plugin.
+- **.NET in the browser is not supported.** Its `wasm-tools` workload links
+  with an Emscripten of its own — 3.1.34 for .NET 8, 3.1.56 for .NET 10 —
+  below the floor; the C# bindings leave `browser-wasm` out for that reason.
 - **Single-threaded.** A program linked with `-pthread` refuses the
   library: shared memory needs every object compiled with atomics, and the
   engine's standard library is not.
