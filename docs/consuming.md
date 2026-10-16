@@ -107,8 +107,8 @@ takes any 1.5.x and nothing else.
 A program compiled to the browser with Emscripten links the engine as a
 static library: a C++ engine built for the web, or Unity WebGL. Configure
 with Emscripten's toolchain file, `emcmake cmake` or the `emscripten` preset,
-and the archive for `wasm32-unknown-emscripten` is the
-one fetched. From engine 1.5.3.
+and the archive for `wasm32-unknown-emscripten` is the one fetched. From
+engine 1.5.3.
 
 - **Emscripten 4.0 or later.** Each release is linked and played with
   4.0.10, 4.0.19 and the newest it was built with. Older ones fail, two ways:

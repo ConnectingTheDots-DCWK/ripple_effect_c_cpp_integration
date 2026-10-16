@@ -19,11 +19,12 @@
 
 - **The web, through Emscripten**, pinning engine 1.5.3: a program compiled
   to the browser — a C++ engine, Unity WebGL — links the engine's static
-  library for `wasm32-unknown-emscripten`, which the configure fetches under Emscripten's toolchain. Emscripten 4.0 or later,
-  single-threaded, no exception flag asked of the host; Unity 6000.5 and
-  later, not 6000.0 to 6000.4. `docs/consuming.md` has the rest. *(Corrected
-  after release: this entry also named .NET in the browser, which bundles an
-  Emscripten older than 4.0 and cannot link the engine.)*
+  library for `wasm32-unknown-emscripten`, which the configure fetches under
+  Emscripten's toolchain. Emscripten 4.0 or later, single-threaded, no
+  exception flag asked of the host; Unity 6000.5 and later, not 6000.0 to
+  6000.4. `docs/consuming.md` has the rest. *(Corrected after release: this
+  entry also named .NET in the browser, which bundles an Emscripten older
+  than 4.0 and cannot link the engine.)*
 - **The `emscripten` and `emscripten-no-python` presets**, whose tests run
   under node, and a CI leg running them with Emscripten 4.0.10 and 6.0.12.
 
