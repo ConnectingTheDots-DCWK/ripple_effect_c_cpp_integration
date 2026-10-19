@@ -37,6 +37,11 @@ lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64", "macos-x64", "w
 python = "3.13.16"
 "aqua:astral-sh/uv" = "0.13.1"
 "pipx:clang-format" = "18.1.8"
+# The same LLVM's clang-tidy, which check.yml's linux-clang leg runs. The
+# image's moved past 18 and began reporting what 18 does not (20 and 21 both
+# flag two optional accesses in tests/conformance), so it is pinned with
+# clang-format; a newer LLVM is a bump of both, and those two findings.
+"pipx:clang-tidy" = "18.1.8"
 "pipx:cmakelang" = { version = "0.6.13", extras = "YAML" }
 
 "aqua:jqlang/jq" = "1.8.2"

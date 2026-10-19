@@ -193,6 +193,12 @@ backend = "pipx:clang-format"
 specifiers = ["18.1.8"]
 uv = { path = ".mise/locks/pipx-clang-format/18.1.8", digest = "sha256:4d9780d23a4591449ba02e12cb9c18ec1fa903e971109e73706848fa848b8480" }
 
+[[tools."pipx:clang-tidy"]]
+version = "18.1.8"
+backend = "pipx:clang-tidy"
+specifiers = ["18.1.8"]
+uv = { path = ".mise/locks/pipx-clang-tidy/18.1.8", digest = "sha256:a8f88b80e894a09f29b939d333ff14b865238ea9d09eeed432279add754d09c0" }
+
 [[tools."pipx:cmakelang"]]
 version = "0.6.13"
 backend = "pipx:cmakelang"

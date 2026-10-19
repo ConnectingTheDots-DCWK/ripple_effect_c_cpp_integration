@@ -96,11 +96,14 @@ jobs:
         run: cmake --build --preset ${{ matrix.preset }}
       - name: Test
         run: ctest --preset ${{ matrix.preset }}
+      # mise.toml's clang-tidy, not the image's: a newer LLVM reports more,
+      # and the version is moved on purpose rather than by a runner update.
       - name: clang-tidy
         if: matrix.tidy
         run: |
+          mise install python aqua:astral-sh/uv pipx:clang-tidy
           git ls-files 'tests/*.cpp' 'tests/*.c' 'examples/*.cpp' 'examples/*.c' \
-            | xargs clang-tidy -p out/build/${{ matrix.preset }} --quiet
+            | xargs mise exec -- clang-tidy -p out/build/${{ matrix.preset }} --quiet
 
   # The engine for a page built with Emscripten, played under node by every
   # Emscripten the engine's own release links it with: the oldest it

@@ -116,6 +116,9 @@ else
 fi
 check 1 'hooks installed' 'pre-commit install --hook-type pre-commit --hook-type pre-push' hooks_installed
 
+section "clang-tidy (check.yml's linux-clang leg)"
+pin 0 pipx:clang-tidy clang-tidy
+
 section 'pinning an engine (scripts/pin-engine.sh)'
 tool 0 curl 'your package manager: curl' curl --version
 tool 0 xxd 'your package manager: xxd (vim-common)' xxd --version
