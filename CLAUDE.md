@@ -23,9 +23,15 @@ is repeated here.
 
 ## Environment
 
-CMake 3.24 and a C99/C++17 compiler: GCC or Clang on Linux, Apple Clang,
-MSVC (from a developer prompt, for the presets' Ninja). `cargo` too, only
-with `RIPPLE_ENGINE_TREE`. Until `engine.json` pins a release, **every
+A C99/C++17 compiler: GCC or Clang on Linux, Apple Clang, MSVC (from a
+developer prompt, for the presets' Ninja). Every other tool is pinned in
+`mise.toml` — CMake, Ninja, clang-format, cmake-format, TruffleHog,
+pre-commit — and `mise install` puts the lot on a machine; `mise run doctor`
+(`scripts/doctor.sh`) checks one and says how to fix what it lacks. CMake's
+*floor* is not that pin: it is `cmake_minimum_required` (3.24), what a
+consumer needs, and the platform floors are `CMakePresets.json`'s. A workflow
+that needs a pinned version installs it with `jdx/mise-action` or reads it
+through `scripts/mise_pin.sh`. `cargo` too, only with `RIPPLE_ENGINE_TREE`. Until `engine.json` pins a release, **every
 configure needs `RIPPLE_ENGINE_TREE=<a ripple_effect checkout>`**, which
 builds the engine's `ripple-capi` in that tree and marks the result
 UNVERIFIED; the presets read it from the environment.
