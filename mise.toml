@@ -1,0 +1,51 @@
+# The tools this repository needs at a version, and the one place each
+# version is written. `mise install` puts them on a machine; `mise run doctor`
+# checks a machine against this file and the pins that live elsewhere; a
+# workflow that needs one of these versions reads it through
+# scripts/mise_pin.sh or installs it with jdx/mise-action, never spelling it.
+#
+# What is not here, on purpose: CMake's *floor* (3.24) is CMakeLists.txt's and
+# the platform floors are CMakePresets.json's — they are what a consumer gets,
+# and this file only pins what this repository's own checks run. The
+# compilers, the Android NDK, Xcode and emsdk are the platform's; the doctor
+# checks they are there.
+#
+# Prebuilt releases only — aqua's registry, or a PyPI wheel through uv — so
+# `mise install` compiles nothing.
+min_version = { soft = "2026.10.0" }
+
+# mise.lock holds every tool's URL and checksum for these platforms, so an
+# install fetches the same bytes everywhere. `mise lock` after changing a pin.
+[settings]
+lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64", "macos-x64", "windows-x64"]
+
+[tools]
+# The secret scan every commit runs, at the version secrets.yml runs in CI.
+"aqua:trufflesecurity/trufflehog" = "3.99.0"
+# Not published for Windows as a binary; there it is `pip install pre-commit`.
+"aqua:pre-commit/pre-commit" = { version = "4.7.0", os = ["unix"] }
+
+# What the presets configure and build with, here and in check.yml.
+"aqua:Kitware/CMake" = "3.31.12"
+"aqua:ninja-build/ninja" = "1.13.2"
+
+# The format checks, the hook's and CI's alike. clang-format's output differs
+# between major versions, so an unpinned one is a check that passes in one
+# place and fails in the other. They are PyPI wheels, which uv installs and
+# which need an interpreter; so does pre-commit, a zipapp. python is mise's
+# prebuilt one, so a machine with none still gets them.
+python = "3.13.16"
+"aqua:astral-sh/uv" = "0.13.1"
+"pipx:clang-format" = "18.1.8"
+# The same LLVM's clang-tidy, which check.yml's linux-clang leg runs. The
+# image's moved past 18 and began reporting what 18 does not (20 and 21 both
+# flag two optional accesses in tests/conformance), so it is pinned with
+# clang-format; a newer LLVM is a bump of both, and those two findings.
+"pipx:clang-tidy" = "18.1.8"
+"pipx:cmakelang" = { version = "0.6.13", extras = "YAML" }
+
+"aqua:jqlang/jq" = "1.8.2"
+
+[tasks.doctor]
+description = "Check this machine has every tool the repository pins, and say how to fix what it lacks."
+run = "bash scripts/doctor.sh"

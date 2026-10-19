@@ -3,9 +3,9 @@
 #   pre-commit install --hook-type pre-commit --hook-type pre-push   once, per clone
 #   pre-commit run --all-files                                       to sweep the tree
 #
-# The secret scan is TruffleHog over what is staged, and a clone needs the
-# binary: https://github.com/trufflesecurity/trufflehog/releases, checked
-# against its checksums.txt, or `brew install trufflehog`. Without it the hook
+# The secret scan is TruffleHog over what is staged, at the version mise.toml
+# pins — `mise install` puts it and every other tool the hooks run on the
+# machine, and `mise run doctor` says what is missing. Without it the hook
 # fails and says so rather than letting the commit through unscanned. CI's
 # `.github/workflows/secrets.yml` runs the same scan over everything pushed.
 #
