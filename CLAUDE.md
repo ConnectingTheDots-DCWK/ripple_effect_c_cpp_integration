@@ -23,7 +23,7 @@ is repeated here.
 
 ## Environment
 
-CMake 3.24 and a C11/C++17 compiler: GCC or Clang on Linux, Apple Clang,
+CMake 3.24 and a C99/C++17 compiler: GCC or Clang on Linux, Apple Clang,
 MSVC (from a developer prompt, for the presets' Ninja). `cargo` too, only
 with `RIPPLE_ENGINE_TREE`. Until `engine.json` pins a release, **every
 configure needs `RIPPLE_ENGINE_TREE=<a ripple_effect checkout>`**, which

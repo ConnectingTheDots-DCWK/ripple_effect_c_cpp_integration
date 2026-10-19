@@ -92,16 +92,17 @@ jobs:
           git ls-files 'tests/*.cpp' 'tests/*.c' 'examples/*.cpp' 'examples/*.c' \
             | xargs clang-tidy -p out/build/${{ matrix.preset }} --quiet
 
-  # The engine for a page built with Emscripten, played under node by the
-  # oldest Emscripten the archive supports and the newest it was built with —
-  # the floor is the engine's (docs/consuming.md, *On the web*).
+  # The engine for a page built with Emscripten, played under node by every
+  # Emscripten the engine's own release links it with: the oldest it
+  # supports, the one Unity 6000.5 bundles, and the newest it was built with
+  # (docs/consuming.md, *On the web*).
   emscripten:
     needs: pin
     if: needs.pin.outputs.pinned == 'true'
     strategy:
       fail-fast: false
       matrix:
-        emsdk: ["4.0.10", "6.0.12"]
+        emsdk: ["4.0.10", "4.0.19", "6.0.12"]
         preset: [emscripten, emscripten-no-python]
     runs-on: ubuntu-latest
     timeout-minutes: 30
