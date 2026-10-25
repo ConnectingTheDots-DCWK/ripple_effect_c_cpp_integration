@@ -881,12 +881,11 @@ class SoundscapeView
 /// What a story may read of the world outside it. Open for appending; the
 /// microphone is not one.
 ///
-/// The numbers are `RipplePermissionKind`'s, which `ripple.h` names in its
-/// comments but does not declare in 1.6.0, so they are spelled here.
+/// The numbers are `ripple.h`'s `RipplePermissionKind`.
 enum class PermissionKind : std::uint32_t
 {
-    date_time = 0,
-    location = 1,
+    date_time = RIPPLE_PERMISSION_KIND_DATE_TIME,
+    location = RIPPLE_PERMISSION_KIND_LOCATION,
 };
 
 /// A kind's wire name — `dateTime`, `location` — as the manifest's

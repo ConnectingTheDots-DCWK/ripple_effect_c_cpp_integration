@@ -131,12 +131,6 @@ instantiated.
   about the scheduler, not the driver.
 - **A handover waits for the fade-out.** `tavern` fades over two seconds
   before `rain` opens; a check that looks too soon never sees rain at all.
-- **`RipplePermissionKind` is not in engine 1.6.0's `ripple.h`.** cbindgen
-  emits only the tag enums its `[export]` list names, and that one was left
-  off, so the header mentions it in comments and declares nothing. The
-  numbers — `0` the date and time, `1` the location — are spelled in
-  `ripple.hpp`'s `PermissionKind` and as literals in C; a later header that
-  declares it changes nothing here.
 - **`std::optional` checks under clang-tidy**: `bugprone-unchecked-optional-access`
   flags `.value()` too, which is why `Result<void>` keeps a flag rather than an
   optional.

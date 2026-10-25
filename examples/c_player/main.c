@@ -61,8 +61,7 @@ static void print_notices(const RippleEffects* batch)
 }
 
 /* Asks about each kind the story reads; each answer but the last answers
- * nothing, and the last begins the story. 0 is the date and time, 1 the
- * location — RipplePermissionKind. */
+ * nothing, and the last begins the story. */
 static RippleResult ask_permits(RippleSession* session, const RipplePermit* permit,
                                 const RippleEffects** next, const RippleError** error)
 {
@@ -72,8 +71,8 @@ static RippleResult ask_permits(RippleSession* session, const RipplePermit* perm
     {
         char line[16];
         int granted;
-        printf("May this story read %s? [y/N] ",
-               permit->kinds[i] == 1 ? "where you are" : "the date and time");
+        const int location = permit->kinds[i] == RIPPLE_PERMISSION_KIND_LOCATION;
+        printf("May this story read %s? [y/N] ", location ? "where you are" : "the date and time");
         fflush(stdout);
         granted = fgets(line, sizeof line, stdin) != NULL && (line[0] == 'y' || line[0] == 'Y');
         ripple_free(*next);

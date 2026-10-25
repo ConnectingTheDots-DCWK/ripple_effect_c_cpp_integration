@@ -14,9 +14,8 @@
   them asked; `set_now` with a `Moment`, `set_position` with a `Position`,
   and `set_stand_in`; the `Notice` effect, once per kind and outcome; and
   `Code::not_permitted` and `Code::stand_in`, thrown as `HostError`.
-  `PermissionKind` and `permission_kind_name` are spelled here, because
-  engine 1.6.0's `ripple.h` names `RipplePermissionKind` without declaring
-  it. `local_moment()` is this machine's time at its own offset.
+  `PermissionKind` takes its numbers from `ripple.h`'s `RipplePermissionKind`.
+  `local_moment()` is this machine's time at its own offset.
 - **A passage may count down.** `Passage::timer`, a `ChoiceTimer`;
   `Session::begin_countdown` and `expire`; `Code::no_countdown` and
   `Code::countdown_not_begun`. The `Player` runs one on its own clock from
