@@ -25,20 +25,26 @@ ripple::SessionConfig config;
 config.board = campaign.manifest().entries.front();
 ripple::Session session = ripple::Session::create(campaign, config);
 
+const auto tell = [&] { session.set_now(now()); };     // the time, before every verb that
+tell();                                                // can step; read only if it is let
 for (ripple::Effects batch = session.start();;) {
-    const ripple::Effect& turn = batch.back();         // the Turn comes last
-    if (ripple::is_over(turn)) break;
+    const ripple::Effect turn = batch.back();          // the Turn comes last; a copy, as
+    if (ripple::is_over(turn)) break;                  // the next verb replaces the batch
     if (auto* shown = std::get_if<ripple::Show>(&turn)) {
         draw(shown->passage);                          // Markdown, and its pictures
-        batch = session.choose(pick(shown->passage));
+        const auto picked = pick(shown->passage);
+        tell(); batch = session.choose(picked);
     } else if (std::holds_alternative<ripple::Hold>(turn)) {
         wait(std::get<ripple::Hold>(turn).ms);         // your clock, never the engine's
-        batch = session.elapsed();
+        tell(); batch = session.elapsed();
     } else if (auto* asked = std::get_if<ripple::Permit>(&turn)) {
-        for (auto kind : asked->kinds)                 // the clock, the location: before it begins
-            batch = session.permit(kind, allowed(kind));
+        for (auto kind : asked->kinds) {               // the clock, the location: before it begins
+            const bool yes = allowed(kind);
+            tell(); batch = session.permit(kind, yes);
+        }
     } else {
-        batch = session.answer(fill(std::get<ripple::Ask>(turn).prompt));
+        const auto answer = fill(std::get<ripple::Ask>(turn).prompt);
+        tell(); batch = session.answer(answer);
     }
 }
 ```

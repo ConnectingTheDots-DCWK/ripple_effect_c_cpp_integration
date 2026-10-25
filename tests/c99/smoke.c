@@ -5,9 +5,10 @@
  * handed out. A host with no C++ in it writes exactly this loop. The first
  * passage that counts down is let run out instead — begun, then expired at
  * once — and a story that asks before it begins is told no to every kind, at
- * a fixed instant handed in first.
+ * a fixed instant handed in first. Named, either is what the run is for, and
+ * a story that never did it fails.
  *
- *   ripple_c99 <bundle folder>
+ *   ripple_c99 <bundle folder> [countdown | permit]
  */
 #include <ripple/ripple.h>
 
@@ -92,10 +93,13 @@ int main(int argc, char** argv)
     RippleResult code;
     int turns = 0;
     int ran_out = 0;
+    int asked = 0;
+    const char* expected = argc == 3 ? argv[2] : "";
 
-    if (argc != 2)
+    if (argc < 2 || argc > 3 ||
+        (argc == 3 && strcmp(expected, "countdown") != 0 && strcmp(expected, "permit") != 0))
     {
-        fprintf(stderr, "usage: %s <bundle folder>\n", argv[0]);
+        fprintf(stderr, "usage: %s <bundle folder> [countdown | permit]\n", argv[0]);
         return 2;
     }
     if (strcmp(ripple_engine_contract(), "1.6") != 0)
@@ -158,6 +162,7 @@ int main(int argc, char** argv)
                 }
                 break;
             case RIPPLE_EFFECT_KIND_PERMIT:
+                asked = 1;
                 code = refuse_all(session, turn->data.permit, &next, &error);
                 break;
             case RIPPLE_EFFECT_KIND_ASK:
@@ -186,6 +191,16 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "%lu things the engine handed out were never freed\n",
                 (unsigned long)ripple_outstanding());
+        return 1;
+    }
+    if (strcmp(expected, "countdown") == 0 && !ran_out)
+    {
+        fprintf(stderr, "no passage counted down\n");
+        return 1;
+    }
+    if (strcmp(expected, "permit") == 0 && !asked)
+    {
+        fprintf(stderr, "the story never asked before it began\n");
         return 1;
     }
     printf("played to the end in %d turns on engine %s\n", turns, ripple_engine_version());

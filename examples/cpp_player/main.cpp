@@ -16,6 +16,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace
 {
@@ -152,7 +153,10 @@ int main(int argc, char** argv)
             }
             else if (const auto* permit = std::get_if<ripple::Permit>(&*turn))
             {
-                for (const ripple::PermissionKind kind : permit->kinds)
+                // A copy: the answer to the last kind begins the story, and
+                // the turn it shows replaces this one.
+                const std::vector<ripple::PermissionKind> kinds = permit->kinds;
+                for (const ripple::PermissionKind kind : kinds)
                     player.permit(kind, yes(kind == ripple::PermissionKind::location
                                                 ? "May this story read where you are?"
                                                 : "May this story read the date and time?"));

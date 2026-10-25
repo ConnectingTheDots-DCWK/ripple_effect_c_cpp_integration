@@ -74,8 +74,9 @@ add_test(NAME c99_plays_a_fixture COMMAND ripple_c99 "${RIPPLE_FIXTURES}/the-cho
 # A story that counts down, and one that asks before it begins: neither needs
 # the interpreter, so both variants play them.
 add_test(NAME c99_runs_out_a_countdown COMMAND ripple_c99
-                                               "${RIPPLE_FIXTURES}/the-hesitation/bundle")
-add_test(NAME c99_answers_a_permit COMMAND ripple_c99 "${RIPPLE_FIXTURES}/the-weathervane/bundle")
+                                               "${RIPPLE_FIXTURES}/the-hesitation/bundle" countdown)
+add_test(NAME c99_answers_a_permit COMMAND ripple_c99 "${RIPPLE_FIXTURES}/the-weathervane/bundle"
+                                           permit)
 
 # ripple.hpp with exceptions off, as a game built with -fno-exceptions has it.
 add_executable(ripple_no_exceptions no_exceptions.cpp)
