@@ -2,7 +2,10 @@
  * The C header alone, in C99: open a bundle from its folder, play it to its
  * end by taking every passage's first available choice, leaving every form
  * and waiting out every hold at once, and give back everything the engine
- * handed out. A host with no C++ in it writes exactly this loop.
+ * handed out. A host with no C++ in it writes exactly this loop. The first
+ * passage that counts down is let run out instead — begun, then expired at
+ * once — and a story that asks before it begins is told no to every kind, at
+ * a fixed instant handed in first.
  *
  *   ripple_c99 <bundle folder>
  */
@@ -47,6 +50,36 @@ static uint32_t first_available(const RipplePassage* passage)
     return RIPPLE_CHOICE_NONE;
 }
 
+/* Says no to every kind the story asked about: each answer but the last
+ * answers nothing, and the last begins the story. */
+static RippleResult refuse_all(RippleSession* session, const RipplePermit* permit,
+                               const RippleEffects** next, const RippleError** error)
+{
+    RippleResult code = RIPPLE_SUCCESS;
+    size_t i;
+    for (i = 0; i < permit->kind_count && code == RIPPLE_SUCCESS; i++)
+    {
+        ripple_free(*next);
+        *next = NULL;
+        code = ripple_session_permit(session, permit->kinds[i], false, next, error);
+    }
+    return code;
+}
+
+/* A countdown's two verbs, as a host's clock would say them. */
+static RippleResult run_out(RippleSession* session, const RippleEffects** next,
+                            const RippleError** error)
+{
+    const RippleEffects* begun = NULL;
+    RippleResult code = ripple_session_begin_countdown(session, &begun, error);
+    ripple_free(begun);
+    if (code != RIPPLE_SUCCESS)
+    {
+        return code;
+    }
+    return ripple_session_expire(session, next, error);
+}
+
 int main(int argc, char** argv)
 {
     RippleCampaign* campaign = NULL;
@@ -55,17 +88,19 @@ int main(int argc, char** argv)
     const RippleEffects* batch = NULL;
     const RippleError* error = NULL;
     RippleSessionConfig config;
+    RippleMoment now;
     RippleResult code;
     int turns = 0;
+    int ran_out = 0;
 
     if (argc != 2)
     {
         fprintf(stderr, "usage: %s <bundle folder>\n", argv[0]);
         return 2;
     }
-    if (strcmp(ripple_engine_contract(), "1.5") != 0)
+    if (strcmp(ripple_engine_contract(), "1.6") != 0)
     {
-        fprintf(stderr, "this program binds contract 1.5, not %s\n", ripple_engine_contract());
+        fprintf(stderr, "this program binds contract 1.6, not %s\n", ripple_engine_contract());
         return 1;
     }
 
@@ -89,6 +124,15 @@ int main(int argc, char** argv)
         return fail("create", code, error);
     }
 
+    /* 2026-10-19T18:30:00+02:00, which a story reads only if it is let. */
+    now.utc_ms = 1792427400000LL;
+    now.offset_minutes = 120;
+    code = ripple_session_set_now(session, &now, &error);
+    if (code != RIPPLE_SUCCESS)
+    {
+        return fail("set_now", code, error);
+    }
+
     code = ripple_session_start(session, &batch, &error);
     while (code == RIPPLE_SUCCESS && batch != NULL)
     {
@@ -102,8 +146,19 @@ int main(int argc, char** argv)
         switch (turn->kind)
         {
             case RIPPLE_EFFECT_KIND_SHOW:
-                code =
-                    ripple_session_choose(session, first_available(turn->data.show), &next, &error);
+                if (turn->data.show->timer != NULL && !ran_out)
+                {
+                    ran_out = 1;
+                    code = run_out(session, &next, &error);
+                }
+                else
+                {
+                    code = ripple_session_choose(session, first_available(turn->data.show), &next,
+                                                 &error);
+                }
+                break;
+            case RIPPLE_EFFECT_KIND_PERMIT:
+                code = refuse_all(session, turn->data.permit, &next, &error);
                 break;
             case RIPPLE_EFFECT_KIND_ASK:
                 code = ripple_session_answer(session, NULL, &next, &error);
