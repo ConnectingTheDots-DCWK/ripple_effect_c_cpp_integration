@@ -34,15 +34,19 @@ for (ripple::Effects batch = session.start();;) {
     } else if (std::holds_alternative<ripple::Hold>(turn)) {
         wait(std::get<ripple::Hold>(turn).ms);         // your clock, never the engine's
         batch = session.elapsed();
+    } else if (auto* asked = std::get_if<ripple::Permit>(&turn)) {
+        for (auto kind : asked->kinds)                 // the clock, the location: before it begins
+            batch = session.permit(kind, allowed(kind));
     } else {
         batch = session.answer(fill(std::get<ripple::Ask>(turn).prompt));
     }
 }
 ```
 
-`ripple::Player` is the same loop written once: it answers holds from your
-frame's `update()`, applies the sound, and dispatches the author's named
-callbacks. `examples/` has a terminal player in C and one in C++.
+`ripple::Player` is the same loop written once: it answers holds and runs a
+passage's countdown from your frame's `update()`, tells the story the time,
+applies the sound, and dispatches the author's named callbacks. `examples/`
+has a terminal player in C and one in C++.
 
 ## Getting it
 
@@ -53,7 +57,7 @@ include(FetchContent)
 FetchContent_Declare(
     ripple_effect
     GIT_REPOSITORY https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration
-    GIT_TAG v1.5.2)
+    GIT_TAG v1.6.0)
 FetchContent_MakeAvailable(ripple_effect)
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
@@ -69,7 +73,7 @@ offline builds and `find_package` are all in
 one engine release, `engine-v<version>` of the public
 [ripple_engine_releases](https://github.com/ConnectingTheDots-DCWK/ripple_engine_releases),
 whose signed manifest names every archive. A version here is the engine's
-contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.5.2 binds contract 1.5.
+contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.6.0 binds contract 1.6.
 
 ## Working on it
 

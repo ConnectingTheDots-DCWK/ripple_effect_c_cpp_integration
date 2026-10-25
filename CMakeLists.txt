@@ -10,12 +10,12 @@
 #   Ripple::cpp      the same, and include/ripple/ripple.hpp over it
 #
 # as a subdirectory, through FetchContent, or after `cmake --install` with
-# `find_package(RippleEffect 1.5)`. README.md has all three.
+# `find_package(RippleEffect 1.6)`. README.md has all three.
 cmake_minimum_required(VERSION 3.24)
 
 project(
     RippleEffect
-    VERSION 1.5.2
+    VERSION 1.6.0
     DESCRIPTION "C and C++ bindings of the Ripple Effect engine"
     HOMEPAGE_URL "https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration"
     LANGUAGES C CXX)

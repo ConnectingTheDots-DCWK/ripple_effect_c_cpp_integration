@@ -15,7 +15,7 @@ targets:
 
 ```sh
 git submodule add https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration third_party/ripple_effect
-git -C third_party/ripple_effect checkout v1.5.2
+git -C third_party/ripple_effect checkout v1.6.0
 ```
 
 ```cmake
@@ -31,7 +31,7 @@ include(FetchContent)
 FetchContent_Declare(
     ripple_effect
     GIT_REPOSITORY https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration
-    GIT_TAG v1.5.2)
+    GIT_TAG v1.6.0)
 FetchContent_MakeAvailable(ripple_effect)
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
@@ -41,7 +41,7 @@ Or the release's source tarball, pinned by the digest in its `SHA256SUMS`:
 ```cmake
 FetchContent_Declare(
     ripple_effect
-    URL https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration/releases/download/v1.5.2/ripple_effect_c_cpp_integration-1.5.2.tar.gz
+    URL https://github.com/ConnectingTheDots-DCWK/ripple_effect_c_cpp_integration/releases/download/v1.6.0/ripple_effect_c_cpp_integration-1.6.0.tar.gz
     URL_HASH SHA256=<from SHA256SUMS>)
 ```
 
@@ -56,7 +56,7 @@ cmake --install out/build/linux-clang --prefix /opt/ripple_effect
 ```
 
 ```cmake
-find_package(RippleEffect 1.5 REQUIRED)   # CMAKE_PREFIX_PATH=/opt/ripple_effect
+find_package(RippleEffect 1.6 REQUIRED)   # CMAKE_PREFIX_PATH=/opt/ripple_effect
 target_link_libraries(my_game PRIVATE Ripple::cpp)
 ```
 
@@ -64,8 +64,8 @@ The installed tree is `include/ripple/{ripple.h,ripple.hpp}`, the library
 under `lib/` (the DLL under `bin/`), the package config under
 `lib/cmake/RippleEffect/`, and the engine's notice as
 `share/ripple_effect/ENGINE-NOTICE`. The package version is
-**SameMinorVersion**: `MAJOR.MINOR` is the engine's contract, so a 1.5 host
-takes any 1.5.x and nothing else.
+**SameMinorVersion**: `MAJOR.MINOR` is the engine's contract, so a 1.6 host
+takes any 1.6.x and nothing else.
 
 ## The options
 

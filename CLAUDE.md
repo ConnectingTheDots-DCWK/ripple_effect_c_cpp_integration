@@ -14,10 +14,10 @@ is repeated here.
 | `include/ripple/ripple.hpp` | The C++17 layer, header-only: handles, `Value`, the `Effect` variant, errors or `Result<T>`, `Speaker`, `SoundscapeDriver`, `Player`. `ripple/ripple.h` is not here: it comes with the engine archive. |
 | `cmake/RippleEngine.cmake` | Where the engine comes from: the pinned release (verified by digest), `RIPPLE_ENGINE_DIR`, or `RIPPLE_ENGINE_TREE` (cargo, UNVERIFIED). Picks the triple from the toolchain. |
 | `cmake/RippleImport.cmake` | `Ripple::engine` from an unpacked archive, shared by the build tree and the installed config — the one file that knows the archive's layout. |
-| `cmake/RippleInstall.cmake`, `RippleEffectConfig.cmake.in` | `cmake --install` and `find_package(RippleEffect 1.5)`. |
+| `cmake/RippleInstall.cmake`, `RippleEffectConfig.cmake.in` | `cmake --install` and `find_package(RippleEffect 1.6)`. |
 | `engine.json`, `engine-signing.pub` | The pin — the version, the key and every C archive's digest — and the key the manifest is checked against, a copy of `packages/ripple_native/native/engine-signing.pub` there. |
 | `scripts/pin-engine.sh` | Writes the pin from a release's signed manifest, or (`--verify`) checks the committed one is one. |
-| `tests/` | The conformance suite through `Session` and `Player`, a C99 program, the no-exceptions build, the soundscape driver, the values. |
+| `tests/` | The conformance suite through `Session` and `Player`, a C99 program, the no-exceptions build, the soundscape driver, the Player's own clock, the values. |
 | `examples/` | Terminal players in C and in C++ over any bundle folder. |
 | `docs/speaker.md`, `docs/consuming.md` | The public speaker contract, and the three ways a project takes this one. |
 
@@ -58,9 +58,10 @@ cmake --preset emscripten && cmake --build --preset emscripten && ctest --preset
 ```
 
 The suite plays every conformance fixture of the pinned release through
-`Session` and through `Player`, in the configured variant: 24 with Python,
-21 without, skipping 3 — counts asserted, and the engine asked, not the
-configuration. Fourteen tests in all. **A test has to be able to fail**: the
+`Session` and through `Player`, in the configured variant: 33 with Python,
+27 without, skipping 6 — counts asserted, and the engine asked, not the
+configuration. The C99 program plays three: one to its end, one whose first
+countdown it runs out, one that asks before it begins. Nineteen tests in all. **A test has to be able to fail**: the
 suite was seen red with a passage's title written into its text, which
 fails every fixture through both hosts.
 
@@ -97,6 +98,19 @@ instantiated.
   `Clock` (steady by default, a number in tests) when the host calls
   `update()`; a game loop is the timer. A voice's reports are the one thing
   that may come from another thread, through `VoiceEvents`' locked inbox.
+- **A countdown is the Player's, like a hold** (`campaign-host-api.md` §4b):
+  it begins `after_ms` past the `Show` by the player's clock and runs out
+  `timeout_ms` past when it was *due* to begin, not when a frame noticed. It
+  is keyed on the visit, not the `Show` — `set_locale`, `permit` and
+  `begin_countdown` keep it, every other verb and any other Turn drop it.
+  The conformance suite turns it off (`countdowns = false`): a fixture's
+  moves say when, and a countdown that ran out by itself would only ever
+  take the default.
+- **The time is pushed, before every verb.** `PlayerHandlers::moment` is
+  asked and handed to `set_now` ahead of each verb that can step, because
+  within one verb the engine's time does not move and it reads no clock of
+  its own (§7a). Answers and stand-ins are not part of a save: a resumed
+  session is told them again before it starts, as the suite does.
 - **The driver is the host's half of the scheduler, and a speaker is only the
   sound** — ported from the JS binding's `SoundscapeDriver`, itself the
   editor's `SoundscapeMixer`. A new duty goes in the driver, or every
@@ -117,6 +131,12 @@ instantiated.
   about the scheduler, not the driver.
 - **A handover waits for the fade-out.** `tavern` fades over two seconds
   before `rain` opens; a check that looks too soon never sees rain at all.
+- **`RipplePermissionKind` is not in engine 1.6.0's `ripple.h`.** cbindgen
+  emits only the tag enums its `[export]` list names, and that one was left
+  off, so the header mentions it in comments and declares nothing. The
+  numbers — `0` the date and time, `1` the location — are spelled in
+  `ripple.hpp`'s `PermissionKind` and as literals in C; a later header that
+  declares it changes nothing here.
 - **`std::optional` checks under clang-tidy**: `bugprone-unchecked-optional-access`
   flags `.value()` too, which is why `Result<void>` keeps a flag rather than an
   optional.
