@@ -3,6 +3,11 @@
 // playing it: the seam a real speaker (miniaudio, SDL, FMOD, Wwise, an
 // engine's own) is plugged into. docs/speaker.md is the contract.
 //
+// It asks before a story reads the clock or where you are, hands it this
+// machine's time — and no position, which a terminal does not know — and runs a passage's countdown
+// on the Player's clock — which a terminal can only look at between lines, so an answer typed after
+// the countdown ran out arrives too late, and the story has already chosen.
+//
 //   ripple_cpp_player <bundle folder> [locale]
 #include <ripple/ripple.hpp>
 
@@ -47,6 +52,13 @@ class PrintingSpeaker : public ripple::Speaker
     }
 };
 
+bool yes(const std::string& question)
+{
+    std::string line;
+    std::cout << question << " [y/N] " << std::flush;
+    return std::getline(std::cin, line) && !line.empty() && (line[0] == 'y' || line[0] == 'Y');
+}
+
 std::optional<std::uint32_t> ask(const ripple::Passage& passage)
 {
     std::cout << "\n== " << passage.title << " ==\n" << passage.text << "\n\n";
@@ -54,6 +66,12 @@ std::optional<std::uint32_t> ask(const ripple::Passage& passage)
     for (std::size_t i = 0; i < passage.choices.size(); ++i)
         std::cout << "  " << i + 1 << ". " << passage.choices[i].text
                   << (passage.choices[i].available ? "" : " (spent)") << "\n";
+    if (passage.timer && passage.timer->visible)
+        std::cout << "  (in "
+                  << static_cast<double>(passage.timer->after_ms + passage.timer->timeout_ms) /
+                         1000.0
+                  << " s the story chooses " << passage.choices[passage.timer->default_choice].text
+                  << ")\n";
     for (std::string line; std::cout << "> " && std::getline(std::cin, line);)
     {
         const std::size_t picked = std::strtoul(line.c_str(), nullptr, 10);
@@ -92,6 +110,17 @@ int main(int argc, char** argv)
         handlers.audio = audio.get();
         handlers.on_error = [](const ripple::Failure& failure)
         { std::cerr << failure.message << "\n"; };
+        // Asked before every verb, and read by the story only once the
+        // reader has said it may.
+        handlers.moment = [] { return std::optional<ripple::Moment>(ripple::local_moment()); };
+        // Every passage shown, so a line read too late can tell it was.
+        std::uint64_t shown = 0;
+        handlers.on_effect = [&shown](const ripple::Effect& effect)
+        {
+            if (std::holds_alternative<ripple::Show>(effect)) ++shown;
+            if (const auto* notice = std::get_if<ripple::Notice>(&effect))
+                std::cout << "  [" << notice->code << "] " << notice->message << "\n";
+        };
         ripple::Player player(ripple::Session::create(campaign, config), handlers);
         player.on_any_callback(
             [](const ripple::CallbackEvent& fired) {
@@ -108,8 +137,26 @@ int main(int argc, char** argv)
             player.update();
             const auto& turn = player.turn();
             if (!turn || ripple::is_over(*turn)) break;
-            if (const auto* shown = std::get_if<ripple::Show>(&*turn))
-                player.choose(ask(shown->passage));
+            if (const auto* passage = std::get_if<ripple::Show>(&*turn))
+            {
+                const std::uint64_t visit = shown;
+                const std::optional<std::uint32_t> picked = ask(passage->passage);
+                // The clock moved while the reader typed: a countdown that
+                // began and ran out meanwhile has taken its default.
+                player.update();
+                player.update();
+                if (shown == visit)
+                    player.choose(picked);
+                else
+                    std::cout << "  (too late: the story chose for you)\n";
+            }
+            else if (const auto* permit = std::get_if<ripple::Permit>(&*turn))
+            {
+                for (const ripple::PermissionKind kind : permit->kinds)
+                    player.permit(kind, yes(kind == ripple::PermissionKind::location
+                                                ? "May this story read where you are?"
+                                                : "May this story read the date and time?"));
+            }
             else if (std::holds_alternative<ripple::Ask>(*turn))
                 player.answer(std::nullopt);
             else
