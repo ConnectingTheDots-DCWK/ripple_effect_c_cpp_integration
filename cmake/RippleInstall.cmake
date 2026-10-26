@@ -1,12 +1,12 @@
 # `cmake --install` lays out the engine and both headers under the prefix,
 # with a package config, so that a project that does not vendor this one can
-# `find_package(RippleEffect 1.5 REQUIRED)` and link `Ripple::cpp`.
+# `find_package(RippleEffect 1.6 REQUIRED)` and link `Ripple::cpp`.
 #
 # The engine is an imported library, which CMake cannot export, so the
 # config re-imports it from where it was installed (RippleImport.cmake, the
 # same function the build tree uses) rather than through install(EXPORT).
 # The version is SameMinorVersion: MAJOR.MINOR is the engine's contract, and
-# a host of 1.5 is not a host of 1.6.
+# a host of 1.6 is not a host of 1.7.
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

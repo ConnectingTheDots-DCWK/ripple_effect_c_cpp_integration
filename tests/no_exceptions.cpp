@@ -29,7 +29,14 @@ int main(int argc, char** argv)
         ++turns;
         const ripple::Effect& turn = batch->back();
         if (ripple::is_over(turn)) break;
-        if (std::holds_alternative<ripple::Show>(turn))
+        // A countdown verb on a passage that has none is a code too.
+        const auto* shown = std::get_if<ripple::Show>(&turn);
+        if (shown && !shown->passage.timer)
+        {
+            const auto none = session->expire();
+            if (none.ok() || none.failure().code != ripple::Code::no_countdown) return 1;
+        }
+        if (shown)
             batch = session->choose(0);
         else if (std::holds_alternative<ripple::Ask>(turn))
             batch = session->answer(std::nullopt);

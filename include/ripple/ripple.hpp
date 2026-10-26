@@ -21,7 +21,7 @@
 // call that can fail, for a game built with `-fno-exceptions`. The same code
 // compiles both ways when it reads results through `ripple::Returns<T>`.
 //
-// Binds contract 1.5. MIT, like the rest of this repository; the engine it
+// Binds contract 1.6. MIT, like the rest of this repository; the engine it
 // calls is under the Ripple Effect Runtime Licence.
 #pragma once
 
@@ -32,6 +32,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <ctime>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -50,23 +51,23 @@
 #include <stdexcept>
 #endif
 
-#if RIPPLE_CONTRACT_MAJOR != 1 || RIPPLE_CONTRACT_MINOR != 5
-#error "ripple.hpp binds contract 1.5, and this ripple/ripple.h is another contract's"
+#if RIPPLE_CONTRACT_MAJOR != 1 || RIPPLE_CONTRACT_MINOR != 6
+#error "ripple.hpp binds contract 1.6, and this ripple/ripple.h is another contract's"
 #endif
 
 namespace ripple
 {
 
 inline constexpr unsigned contract_major = 1;
-inline constexpr unsigned contract_minor = 5;
+inline constexpr unsigned contract_minor = 6;
 
-/// The engine library's version, `1.5.1` — the one loaded, not the one built against.
+/// The engine library's version, `1.6.0` — the one loaded, not the one built against.
 inline std::string_view engine_version() noexcept
 {
     return ripple_engine_version();
 }
 
-/// The contract the loaded library binds, `1.5`.
+/// The contract the loaded library binds, `1.6`.
 inline std::string_view engine_contract() noexcept
 {
     return ripple_engine_contract();
@@ -95,6 +96,10 @@ enum class Code : int
     stopped = RIPPLE_ERROR_STOPPED,
     nothing_asked = RIPPLE_ERROR_NOTHING_ASKED,
     unknown_locale = RIPPLE_ERROR_UNKNOWN_LOCALE,
+    not_permitted = RIPPLE_ERROR_NOT_PERMITTED,
+    stand_in = RIPPLE_ERROR_STAND_IN,
+    no_countdown = RIPPLE_ERROR_NO_COUNTDOWN,
+    countdown_not_begun = RIPPLE_ERROR_COUNTDOWN_NOT_BEGUN,
     board_gone = RIPPLE_ERROR_BOARD_GONE,
     node_gone = RIPPLE_ERROR_NODE_GONE,
     invalid_argument = RIPPLE_ERROR_INVALID_ARGUMENT,
@@ -116,7 +121,7 @@ struct Failure
     std::uint32_t answered = 0;           // wrong_turn: a RippleVerb
     std::uint32_t offered = 0;            // no_such_choice
     std::uint32_t chosen = 0;             // no_such_choice
-    std::string subject;                  // choice_spent, unknown_locale, board_gone, node_gone
+    std::string subject;                  // choice_spent, unknown_locale, *_gone; a kind's name
     std::string node;                     // node_gone
 };
 
@@ -147,7 +152,8 @@ class NeedsPython : public Error
 {
     using Error::Error;
 };
-/// A verb the story was not asking for — host API §11.
+/// A verb the story was not asking for, or a reading the host may not hand
+/// in — host API §11.
 class HostError : public Error
 {
     using Error::Error;
@@ -333,6 +339,10 @@ inline Failure take(RippleResult code, const RippleError* error)
         case Code::stopped:
         case Code::nothing_asked:
         case Code::unknown_locale:
+        case Code::not_permitted:
+        case Code::stand_in:
+        case Code::no_countdown:
+        case Code::countdown_not_begun:
             throw HostError(std::move(failure));
         case Code::board_gone:
         case Code::node_gone:
@@ -701,6 +711,9 @@ struct Manifest
     std::vector<Entry> boards, passages, components, scripts, media, machines, soundscapes;
     std::vector<Cvar> cvars;
     std::vector<std::string> needs;
+    /// What the story reads of the world outside it, by wire name —
+    /// `dateTime`, `location`. A session asks about each before it begins.
+    std::vector<std::string> permissions;
 };
 
 struct Edge
@@ -799,6 +812,7 @@ inline Manifest manifest(const RippleManifest& m)
     out.soundscapes = entries(m.soundscapes, m.soundscape_count);
     out.cvars = list<Cvar, RippleCvar>(m.cvars, m.cvar_count, cvar);
     out.needs = texts(m.needs, m.need_count);
+    out.permissions = texts(m.permissions, m.permission_count);
     return out;
 }
 
@@ -862,6 +876,107 @@ class SoundscapeView
 }  // namespace detail
 
 ////////////////////////////////////////////////////////////////////////////////
+// The world outside the story — `campaign-host-api.md` §7a
+
+/// What a story may read of the world outside it. Open for appending; the
+/// microphone is not one.
+///
+/// The numbers are `ripple.h`'s `RipplePermissionKind`.
+enum class PermissionKind : std::uint32_t
+{
+    date_time = RIPPLE_PERMISSION_KIND_DATE_TIME,
+    location = RIPPLE_PERMISSION_KIND_LOCATION,
+};
+
+/// A kind's wire name — `dateTime`, `location` — as the manifest's
+/// `permissions` and a notice spell it; empty for a number this header does
+/// not know.
+inline std::string_view permission_kind_name(PermissionKind kind) noexcept
+{
+    switch (kind)
+    {
+        case PermissionKind::date_time:
+            return "dateTime";
+        case PermissionKind::location:
+            return "location";
+        default:
+            return "";
+    }
+}
+
+/// An instant from the host: milliseconds since the epoch, and the offset in
+/// minutes the reader's wall clock is at.
+struct Moment
+{
+    std::int64_t utc_ms = 0;
+    std::int32_t offset_minutes = 0;
+};
+
+/// A position fix, any field of which may be absent — shaped after the web's
+/// `GeolocationPosition`. Degrees, and the accuracy in metres.
+struct Position
+{
+    std::optional<std::string> label;
+    std::optional<double> latitude;
+    std::optional<double> longitude;
+    std::optional<double> accuracy;
+    /// When the fix was taken.
+    std::optional<Moment> when;
+};
+
+namespace detail
+{
+
+// Days since 1970-01-01 of a proleptic Gregorian date: Howard Hinnant's
+// days_from_civil, which needs neither timegm nor a time zone database.
+constexpr std::int64_t days_from_civil(std::int64_t year, unsigned month, unsigned day) noexcept
+{
+    year -= month <= 2 ? 1 : 0;
+    const std::int64_t era = (year >= 0 ? year : year - 399) / 400;
+    const auto of_era = static_cast<unsigned>(year - era * 400);
+    const unsigned of_year = (153 * (month > 2 ? month - 3 : month + 9) + 2) / 5 + day - 1;
+    const unsigned of_cycle = of_era * 365 + of_era / 4 - of_era / 100 + of_year;
+    return era * 146097 + static_cast<std::int64_t>(of_cycle) - 719468;
+}
+
+inline std::int64_t seconds_of(const std::tm& at) noexcept
+{
+    const std::int64_t days = days_from_civil(
+        at.tm_year + 1900, static_cast<unsigned>(at.tm_mon + 1), static_cast<unsigned>(at.tm_mday));
+    return ((days * 24 + at.tm_hour) * 60 + at.tm_min) * 60 + at.tm_sec;
+}
+
+inline RippleMoment moment(const Moment& at) noexcept
+{
+    return RippleMoment{at.utc_ms, at.offset_minutes};
+}
+
+}  // namespace detail
+
+/// What time it is on this machine, at its own offset — what a host that
+/// granted `date_time` hands `Session::set_now`, or a `Player` asks for
+/// itself through `PlayerHandlers::moment`.
+inline Moment local_moment() noexcept
+{
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t seconds = std::chrono::system_clock::to_time_t(now);
+    std::tm local{};
+    std::tm utc{};
+#ifdef _WIN32
+    localtime_s(&local, &seconds);
+    gmtime_s(&utc, &seconds);
+#else
+    localtime_r(&seconds, &local);
+    gmtime_r(&seconds, &utc);
+#endif
+    const auto ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    return Moment{
+        static_cast<std::int64_t>(ms),
+        static_cast<std::int32_t>((detail::seconds_of(local) - detail::seconds_of(utc)) / 60)};
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // What a verb answers
 
 struct Choice
@@ -885,6 +1000,20 @@ struct MediaLink
     std::uint32_t media = 0;
 };
 
+/// A passage's countdown — `campaign-host-api.md` §4b. The host's clock
+/// waits `after_ms`, calls `begin_countdown`, waits `timeout_ms` and calls
+/// `expire`; the engine measures none of it. A `Player` does all three.
+struct ChoiceTimer
+{
+    std::uint64_t after_ms = 0;
+    /// Never zero.
+    std::uint64_t timeout_ms = 0;
+    /// Whether the author meant the reader to see it count.
+    bool visible = true;
+    /// The index into the passage's choices taken when it runs out.
+    std::uint32_t default_choice = 0;
+};
+
 /// A passage the reader is on.
 struct Passage
 {
@@ -899,13 +1028,40 @@ struct Passage
     std::optional<std::string> untranslated;
     std::optional<Soundscape> soundscape;
     bool silence = false;
+    /// None when the passage waits for the reader as long as they like.
+    std::optional<ChoiceTimer> timer;
+};
+
+/// One fixed answer a form field offers.
+struct PromptOption
+{
+    /// What a host answers with; the same in every language.
+    std::string id;
+    /// What the reader is shown, in the reader's language.
+    std::string label;
+    /// What the story is handed when it is picked, of the field's type.
+    Value value;
 };
 
 struct PromptField
 {
+    /// What an answer is keyed by — the field's ID, never shown.
     std::string name;
     std::string type;
+    /// What the control is filled in with; a default nobody edits is the answer.
     Value default_value;
+    /// What the reader is shown, in the reader's language: `name` where the
+    /// author wrote nothing.
+    std::string label;
+    /// The hint drawn while the field is empty; empty for none.
+    std::string placeholder;
+    /// Whether the reader may leave it empty, which answers null. A required
+    /// field is not submitted empty.
+    bool optional = false;
+    /// The fixed answers to pick from, in order — one for a scalar type, any
+    /// number for a `…List` — answered with the picked options' ids. Empty
+    /// for a field the reader types into.
+    std::vector<PromptOption> options;
 };
 
 /// A form the story asks the reader to fill.
@@ -1117,10 +1273,29 @@ struct Failed
 struct Stopped
 {
 };
+/// A Turn: the story has not begun, and reads these kinds that nobody has
+/// answered. Answer each with `permit`; the last answer begins the story.
+struct Permit
+{
+    std::vector<PermissionKind> kinds;
+};
+/// A read of the world outside the story that did not get the real value —
+/// once per kind and outcome in a playthrough, before the Turn it was read for.
+struct Notice
+{
+    /// `I.RT.05` a stand-in, `W.RT.06` a refusal, `I.RT.07` nothing; the
+    /// letter is the severity.
+    std::string code;
+    PermissionKind kind = PermissionKind::date_time;
+    /// The node whose Python read it.
+    std::optional<std::string> node;
+    /// The engine's English sentence.
+    std::string message;
+};
 
 /// One effect. Apply a batch in order; the Turn comes last.
 using Effect = std::variant<Trace, Callback, Jumped, AmbienceChanged, Audio, Changed, Show, Ask,
-                            Hold, Ended, Failed, Stopped>;
+                            Hold, Ended, Failed, Stopped, Permit, Notice>;
 using Effects = std::vector<Effect>;
 
 /// Whether an effect is a Turn — where the story now is.
@@ -1128,7 +1303,8 @@ inline bool is_turn(const Effect& effect) noexcept
 {
     return std::holds_alternative<Show>(effect) || std::holds_alternative<Ask>(effect) ||
            std::holds_alternative<Hold>(effect) || std::holds_alternative<Ended>(effect) ||
-           std::holds_alternative<Failed>(effect) || std::holds_alternative<Stopped>(effect);
+           std::holds_alternative<Failed>(effect) || std::holds_alternative<Stopped>(effect) ||
+           std::holds_alternative<Permit>(effect);
 }
 
 /// Whether a Turn is the end of the story: ended, failed or stopped.
@@ -1182,16 +1358,31 @@ inline Passage passage(const RipplePassage& p)
     out.untranslated = opt(p.untranslated);
     out.soundscape = soundscape(p.soundscape);
     out.silence = p.silence;
+    if (p.timer)
+    {
+        const RippleChoiceTimer& t = *p.timer;
+        out.timer = ChoiceTimer{t.after_ms, t.timeout_ms, t.visible, t.default_choice};
+    }
     return out;
+}
+
+inline PromptField prompt_field(const RipplePromptField& f)
+{
+    return PromptField{str(f.name),
+                       str(f.type_name),
+                       value(f.default_value),
+                       str(f.label),
+                       str(f.placeholder),
+                       f.optional,
+                       list<PromptOption, RipplePromptOption>(
+                           f.options, f.option_count, [](const RipplePromptOption& o)
+                           { return PromptOption{str(o.id), str(o.label), value(o.value)}; })};
 }
 
 inline Prompt prompt(const RipplePrompt& p)
 {
-    return Prompt{
-        str(p.node), str(p.title),
-        list<PromptField, RipplePromptField>(
-            p.fields, p.field_count, [](const RipplePromptField& f)
-            { return PromptField{str(f.name), str(f.type_name), value(f.default_value)}; })};
+    return Prompt{str(p.node), str(p.title),
+                  list<PromptField, RipplePromptField>(p.fields, p.field_count, prompt_field)};
 }
 
 inline Ambience ambience(const RippleAmbience& a)
@@ -1320,6 +1511,21 @@ inline Effect effect(const RippleEffect& e)
             return Ended{opt(e.data.ended->title), e.data.ended->ran_out};
         case RIPPLE_EFFECT_KIND_FAILED:
             return Failed{str(e.data.failed->message), opt(e.data.failed->node)};
+        case RIPPLE_EFFECT_KIND_PERMIT:
+        {
+            const RipplePermit& p = *e.data.permit;
+            Permit out;
+            out.kinds.reserve(p.kind_count);
+            for (std::size_t i = 0; i < p.kind_count; ++i)
+                out.kinds.push_back(static_cast<PermissionKind>(p.kinds[i]));
+            return out;
+        }
+        case RIPPLE_EFFECT_KIND_NOTICE:
+        {
+            const RippleNotice& n = *e.data.notice;
+            return Notice{str(n.code), static_cast<PermissionKind>(n.kind), opt(n.node),
+                          str(n.message)};
+        }
         case RIPPLE_EFFECT_KIND_STOPPED:
         default:
             return Stopped{};
@@ -1695,6 +1901,86 @@ class Session
                      { return ripple_session_elapsed(handle(), out, error); });
     }
 
+    /// The host's clock says the shown passage's countdown begins — after its
+    /// timer's `after_ms`. Moves nothing: the effects are only the callbacks an
+    /// author aimed at it, and empty when there are none or it already began.
+    Returns<Effects> begin_countdown()
+    {
+        return batch([&](auto out, auto error)
+                     { return ripple_session_begin_countdown(handle(), out, error); });
+    }
+
+    /// The host's clock says the countdown ran out: the passage's default is
+    /// taken as `choose` would take it. Refused with `countdown_not_begun`
+    /// before `begin_countdown`, and `no_countdown` on a passage with none.
+    Returns<Effects> expire()
+    {
+        return batch([&](auto out, auto error)
+                     { return ripple_session_expire(handle(), out, error); });
+    }
+
+    /// The host's answer for one kind, at any time — before `start` included,
+    /// which is how a host that already knows its reader's answers never has
+    /// them asked. On a `Permit` turn, the last kind answered begins the story.
+    Returns<Effects> permit(PermissionKind kind, bool granted)
+    {
+        return batch(
+            [&](auto out, auto error) {
+                return ripple_session_permit(handle(), static_cast<std::uint32_t>(kind), granted,
+                                             out, error);
+            });
+    }
+
+    /// What time it is, from the host — none for no clock. Before every verb
+    /// that can step, by a host that granted `date_time`; within one verb
+    /// time does not move.
+    Returns<void> set_now(std::optional<Moment> now)
+    {
+        const RippleMoment raw = detail::moment(now.value_or(Moment{}));
+        const RippleError* error = nullptr;
+        const RippleResult code = ripple_session_set_now(handle(), now ? &raw : nullptr, &error);
+        return detail::finish<void>(code, error, [] {});
+    }
+
+    /// The host's last position fix — none for none. Refused with
+    /// `not_permitted` once `location` is denied; a fix given before the
+    /// answer is kept, and read only if it is yes.
+    Returns<void> set_position(const std::optional<Position>& fix)
+    {
+        const RippleError* error = nullptr;
+        if (!fix)
+        {
+            const RippleResult code = ripple_session_set_position(handle(), nullptr, &error);
+            return detail::finish<void>(code, error, [] {});
+        }
+        const auto real = [](const std::optional<double>& one)
+        { return RippleOptionalF64{one.has_value(), one.value_or(0.0)}; };
+        const RippleMoment when = detail::moment(fix->when.value_or(Moment{}));
+        const RipplePosition raw{detail::maybe_span(fix->label), real(fix->latitude),
+                                 real(fix->longitude), real(fix->accuracy),
+                                 fix->when ? &when : nullptr};
+        const RippleResult code = ripple_session_set_position(handle(), &raw, &error);
+        return detail::finish<void>(code, error, [] {});
+    }
+
+    /// The reader's stand-in for one kind, as they typed it — none takes it
+    /// away: ISO 8601 for the clock, read at `local_offset_minutes` when it
+    /// carries no offset; `"lat, lon"` or a place's name for a position.
+    /// Answered whenever the real value is missing. Refused with `stand_in`,
+    /// saying why, for one that does not read.
+    Returns<void> set_stand_in(PermissionKind kind, std::optional<std::string_view> typed,
+                               std::int32_t local_offset_minutes = 0)
+    {
+        const RippleStr raw = typed ? detail::span(*typed) : RippleStr{nullptr, 0};
+        const RippleError* error = nullptr;
+        const RippleResult code = ripple_session_set_stand_in(
+            handle(), static_cast<std::uint32_t>(kind), raw, local_offset_minutes, &error);
+        return detail::finish<void>(code, error, [] {});
+    }
+
+    /// Changes the language the story reads in. The Turn it is on is answered
+    /// again in it: a passage re-rendered with its countdown kept, a form
+    /// re-worded with its field names unchanged.
     Returns<Effects> set_locale(std::string_view locale)
     {
         return batch(
@@ -2641,16 +2927,39 @@ struct PlayerHandlers
     std::function<void(const Failure&)> on_error;
     /// Where the story's sound goes; without one, nothing is heard.
     SoundscapeDriver* audio = nullptr;
+    /// What time it is for the story — `local_moment` for this machine's —
+    /// asked before every verb that can step and handed to `set_now`. Empty
+    /// for a host that hands in no clock, or has not been granted it.
+    std::function<std::optional<Moment>()> moment;
+    /// Whether the player runs a passage's countdown on its own clock, from
+    /// `update()`. Off for a host that keeps time some other way — a test, a
+    /// walk of every branch, a reader who asked for no time limits (WCAG
+    /// 2.2.1) — which calls `begin_countdown` and `expire` itself, or never.
+    bool countdowns = true;
+};
+
+/// Where a passage's countdown stands, by the player's clock.
+struct Countdown
+{
+    ChoiceTimer timer;
+    /// Whether the countdown has begun: `begin_countdown` was said.
+    bool begun = false;
+    /// When the next of the two is due — the beginning, or once begun the end.
+    std::uint64_t due = 0;
 };
 
 using CallbackHandler = std::function<void(const CallbackEvent&)>;
 
 /// The loop over a session, written once. It delivers every effect in order,
 /// keeps the Turn the last one named, answers a `hold` from its clock when
-/// `update()` finds it due, applies the sound to the driver, and is the
-/// table the author's named callbacks are dispatched through
-/// (`campaign-host-api.md` §5b). A verb from inside a handler is refused:
-/// the rest of the batch would arrive after the new one.
+/// `update()` finds it due, runs a passage's countdown the same way (§4b),
+/// tells the session the time before every verb, applies the sound to the
+/// driver, and is the table the author's named callbacks are dispatched
+/// through (`campaign-host-api.md` §5b). A verb from inside a handler is
+/// refused: the rest of the batch would arrive after the new one.
+///
+/// What the player does not wrap is on `session()`: `set_position` and
+/// `set_stand_in` move no story and answer no effects.
 class Player
 {
   public:
@@ -2670,6 +2979,11 @@ class Player
 
     /// When the pending hold is due, by the player's clock; none when none is.
     std::optional<std::uint64_t> hold_due() const noexcept { return due_; }
+
+    /// The shown passage's countdown, for a host that draws one; none when
+    /// the passage has none. Kept across a `set_locale`, which is the same
+    /// visit; dropped once the reader chooses or anything else is shown.
+    const std::optional<Countdown>& countdown() const noexcept { return countdown_; }
 
     /// Calls `handler` whenever the callback named `name` fires, replacing
     /// any handler already under that name.
@@ -2691,27 +3005,49 @@ class Player
 
     Returns<void> start()
     {
-        return verb("start", [&] { return session_.start(); });
+        return verb("start", Visit::ends, [&] { return session_.start(); });
     }
     Returns<void> choose(std::optional<std::uint32_t> index)
     {
-        return verb("choose", [&] { return session_.choose(index); });
+        return verb("choose", Visit::ends, [&] { return session_.choose(index); });
     }
     Returns<void> answer(const std::optional<Value::Map>& values)
     {
-        return verb("answer", [&] { return session_.answer(values); });
+        return verb("answer", Visit::ends, [&] { return session_.answer(values); });
+    }
+    /// The countdown begins now, whatever its `after_ms` said — for a host
+    /// that runs countdowns itself. With `countdowns` on, `update()` says it.
+    Returns<void> begin_countdown()
+    {
+        if (countdown_ && !countdown_->begun && !delivering_ && !disposed_)
+        {
+            countdown_->begun = true;
+            countdown_->due = clock_() + countdown_->timer.timeout_ms;
+        }
+        return verb("begin_countdown", Visit::stays, [&] { return session_.begin_countdown(); });
+    }
+    /// The countdown ran out now: the passage's default is taken.
+    Returns<void> expire()
+    {
+        return verb("expire", Visit::ends, [&] { return session_.expire(); });
+    }
+    /// The reader's answer for one kind; on a `Permit` turn, the last one
+    /// begins the story.
+    Returns<void> permit(PermissionKind kind, bool granted)
+    {
+        return verb("permit", Visit::stays, [&] { return session_.permit(kind, granted); });
     }
     Returns<void> set_locale(std::string_view locale)
     {
-        return verb("set_locale", [&] { return session_.set_locale(locale); });
+        return verb("set_locale", Visit::stays, [&] { return session_.set_locale(locale); });
     }
     Returns<void> restart()
     {
-        return verb("restart", [&] { return session_.restart(); });
+        return verb("restart", Visit::ends, [&] { return session_.restart(); });
     }
     Returns<void> stop()
     {
-        return verb("stop", [&] { return session_.stop(); });
+        return verb("stop", Visit::ends, [&] { return session_.stop(); });
     }
 
     /// Puts the story down and answers its save — none, and nothing stopped,
@@ -2720,6 +3056,8 @@ class Player
     {
         if (delivering_) return detail::fail<std::optional<std::string>>(reentrant("pause"));
         due_.reset();
+        // A save carries no time: a story resumed on a timed passage waits afresh.
+        countdown_.reset();
 #ifdef RIPPLE_HPP_NO_EXCEPTIONS
         auto paused = session_.pause();
         if (!paused) return Result<std::optional<std::string>>(paused.failure());
@@ -2732,42 +3070,49 @@ class Player
 #endif
     }
 
-    /// What the host calls from its loop: answers a hold whose time has come.
+    /// What the host calls from its loop: answers a hold whose time has come,
+    /// and begins or runs out a countdown whose time has.
     void update()
     {
-        if (!due_ || clock_() < *due_ || delivering_) return;
-        due_.reset();
-#ifdef RIPPLE_HPP_NO_EXCEPTIONS
-        auto next = session_.elapsed();
-        if (!next)
+        if (delivering_ || disposed_) return;
+        if (due_)
         {
-            report(next.failure());
+            if (clock_() < *due_) return;
+            due_.reset();
+            by_itself([&] { return session_.elapsed(); });
             return;
         }
-        dispatch(next.value());
-#else
-        try
+        if (!countdown_ || !handlers_.countdowns || clock_() < countdown_->due) return;
+        if (!countdown_->begun)
         {
-            dispatch(session_.elapsed());
+            // From when it was due rather than when this frame noticed, so a
+            // slow loop does not lengthen the reader's time.
+            countdown_->begun = true;
+            countdown_->due += countdown_->timer.timeout_ms;
+            by_itself([&] { return session_.begin_countdown(); });
+            return;
         }
-        catch (const Error& error)
-        {
-            if (handlers_.on_error)
-                handlers_.on_error(error.failure());
-            else
-                throw;
-        }
-#endif
+        countdown_.reset();
+        by_itself([&] { return session_.expire(); });
     }
 
     /// Delivers nothing more and moves the story no further.
     void dispose() noexcept
     {
         due_.reset();
+        countdown_.reset();
         disposed_ = true;
     }
 
   private:
+    /// Whether a verb's answer is still the visit to the passage on show —
+    /// the countdown kept — or the end of it.
+    enum class Visit
+    {
+        stays,
+        ends,
+    };
+
     static Failure reentrant(const char* verb)
     {
         Failure failure;
@@ -2780,7 +3125,7 @@ class Player
     }
 
     template <class Verb>
-    Returns<void> verb(const char* name, Verb&& run)
+    Returns<void> verb(const char* name, Visit visit, Verb&& run)
     {
         if (delivering_) return detail::fail<void>(reentrant(name));
         if (disposed_)
@@ -2792,14 +3137,57 @@ class Player
 #endif
         }
         due_.reset();
+        tell_time();
 #ifdef RIPPLE_HPP_NO_EXCEPTIONS
         auto effects = run();
         if (!effects) return Result<void>(effects.failure());
+        if (visit == Visit::ends) countdown_.reset();
         dispatch(effects.value());
         return Result<void>();
 #else
-        dispatch(run());
+        Effects effects = run();
+        if (visit == Visit::ends) countdown_.reset();
+        dispatch(effects);
 #endif
+    }
+
+    // A verb the player makes by itself, from `update()`: its failure is
+    // reported rather than thrown at a host that did not call it.
+    template <class Verb>
+    void by_itself(Verb&& run)
+    {
+        tell_time();
+#ifdef RIPPLE_HPP_NO_EXCEPTIONS
+        auto next = run();
+        if (!next)
+        {
+            report(next.failure());
+            return;
+        }
+        dispatch(next.value());
+#else
+        try
+        {
+            dispatch(run());
+        }
+        catch (const Error& error)
+        {
+            if (handlers_.on_error)
+                handlers_.on_error(error.failure());
+            else
+                throw;
+        }
+#endif
+    }
+
+    // The host's instant, handed over before a verb can read it. Nothing to
+    // fail on but a dead handle, which the verb itself then reports.
+    void tell_time()
+    {
+        if (!handlers_.moment) return;
+        const std::optional<Moment> now = handlers_.moment();
+        const RippleMoment raw = detail::moment(now.value_or(Moment{}));
+        ripple_session_set_now(session_.handle(), now ? &raw : nullptr, nullptr);
     }
 
     void report(const Failure& failure)
@@ -2840,7 +3228,11 @@ class Player
         for (const Effect& effect : effects)
         {
             if (disposed_) break;
-            if (is_turn(effect)) turn_ = effect;
+            if (is_turn(effect))
+            {
+                turn_ = effect;
+                watch(effect);
+            }
             if (const Audio* audio = std::get_if<Audio>(&effect))
             {
                 if (handlers_.audio) absorb([&] { handlers_.audio->apply(audio->command); });
@@ -2853,6 +3245,21 @@ class Player
         {
             if (const Hold* hold = std::get_if<Hold>(&effects.back())) due_ = clock_() + hold->ms;
         }
+    }
+
+    // A passage shown with a timer starts a countdown, unless this is the
+    // same visit re-rendered; anything else shown ends one.
+    void watch(const Effect& turn)
+    {
+        const Show* shown = std::get_if<Show>(&turn);
+        if (!shown || !shown->passage.timer)
+        {
+            countdown_.reset();
+            return;
+        }
+        if (!countdown_)
+            countdown_ =
+                Countdown{*shown->passage.timer, false, clock_() + shown->passage.timer->after_ms};
     }
 
     void fire(const CallbackEvent& fired)
@@ -2870,6 +3277,7 @@ class Player
     Clock clock_;
     std::optional<Effect> turn_;
     std::optional<std::uint64_t> due_;
+    std::optional<Countdown> countdown_;
     std::unordered_map<std::string, CallbackHandler> callbacks_;
     std::vector<CallbackHandler> every_;
     std::uint64_t misses_ = 0;

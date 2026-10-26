@@ -5,7 +5,7 @@ Wwise, XAudio, OpenAL, or a game engine's own mixer. **This repository ships
 no speaker.** The audio APIs a C or C++ host might use have nothing in
 common, and every one of them is a dependency worth more than the engine.
 What ships is the seam: the engine's scheduler decides every voice, and a
-speaker of yours plays them. It binds **Ripple Effect contract 1.5**, and
+speaker of yours plays them. It binds **Ripple Effect contract 1.6**, and
 transcribes the engine's `host-audio-system.md` §9, the source of truth.
 
 ## Three layers, and the one you write

@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -150,14 +151,47 @@ class Recorder
         for (const auto& choice : e.passage.choices) choices.push_back(choice.text);
         event["choices"] = choices;
         if (e.passage.untranslated) event["untranslated"] = *e.passage.untranslated;
+        // Written only when the passage counts down, so every fixture before
+        // countdowns reads as it did.
+        if (const auto& timer = e.passage.timer)
+            event["timer"] = {{"after", static_cast<std::int64_t>(timer->after_ms)},
+                              {"timeout", static_cast<std::int64_t>(timer->timeout_ms)},
+                              {"visible", timer->visible},
+                              {"default", static_cast<std::int64_t>(timer->default_choice)}};
         into_.trace.push_back(event);
     }
     void record(const ripple::Ask& e)
     {
         Json fields = Json::array();
         for (const auto& field : e.prompt.fields)
-            fields.push_back({{"name", field.name}, {"type", field.type}});
+        {
+            Json one{{"name", field.name}, {"type", field.type}};
+            // Each written only when there is something to say, for the same reason.
+            if (field.optional) one["optional"] = true;
+            if (!field.options.empty())
+            {
+                Json ids = Json::array();
+                for (const auto& option : field.options) ids.push_back(option.id);
+                one["options"] = ids;
+            }
+            fields.push_back(one);
+        }
         into_.trace.push_back({{"kind", "prompt"}, {"node", e.prompt.node}, {"fields", fields}});
+    }
+    void record(const ripple::Permit& e)
+    {
+        Json kinds = Json::array();
+        for (const auto kind : e.kinds) kinds.push_back(ripple::permission_kind_name(kind));
+        into_.trace.push_back({{"kind", "permit"}, {"kinds", kinds}});
+    }
+    void record(const ripple::Notice& e)
+    {
+        // `of`, because `kind` is the event's own.
+        Json event{
+            {"kind", "notice"}, {"code", e.code}, {"of", ripple::permission_kind_name(e.kind)}};
+        if (e.node) event["node"] = *e.node;
+        event["message"] = e.message;
+        into_.trace.push_back(event);
     }
     void record(const ripple::Jumped& e)
     {
@@ -227,6 +261,82 @@ bool over(const std::optional<ripple::Effect>& turn)
     return !turn || ripple::is_over(*turn);
 }
 
+// What a fixture's host knows before a session starts, told again to a
+// resumed one: the instant it is played at, the reader's answers so far —
+// the fixture's, then every `permit` move's — and their stand-ins.
+struct Told
+{
+    std::optional<ripple::Moment> now;
+    std::vector<std::pair<ripple::PermissionKind, bool>> answered;
+    std::vector<std::pair<ripple::PermissionKind, std::string>> stand_ins;
+};
+
+ripple::PermissionKind kind_of(const std::string& wire)
+{
+    if (wire == "dateTime") return ripple::PermissionKind::date_time;
+    if (wire == "location") return ripple::PermissionKind::location;
+    throw std::runtime_error("\"" + wire + "\" is not a kind a story may ask for");
+}
+
+// `count` decimal digits of `text` from `at`, which then points past them.
+// Read by hand rather than with `sscanf`, which MSVC deprecates (C4996).
+int digits_of(const std::string& text, std::size_t& at, std::size_t count)
+{
+    int value = 0;
+    for (std::size_t end = at + count; at < end; ++at)
+    {
+        if (at >= text.size() || !std::isdigit(static_cast<unsigned char>(text[at])))
+            throw std::runtime_error("now is not an ISO 8601 time: " + text);
+        value = value * 10 + (text[at] - '0');
+    }
+    return value;
+}
+
+// `expected` at `at`, then past it.
+void expect_at(const std::string& text, std::size_t& at, const char* expected)
+{
+    if (at >= text.size() || std::string(expected).find(text[at]) == std::string::npos)
+        throw std::runtime_error("now is not an ISO 8601 time: " + text);
+    ++at;
+}
+
+// A fixture's `now`, ISO 8601 with its offset — or at UTC without one, as
+// the engine's runner reads it: `2026-10-19T18:30:00+02:00`.
+ripple::Moment moment_of(const std::string& text)
+{
+    std::size_t at = 0;
+    const int year = digits_of(text, at, 4);
+    expect_at(text, at, "-");
+    const int month = digits_of(text, at, 2);
+    expect_at(text, at, "-");
+    const int day = digits_of(text, at, 2);
+    expect_at(text, at, "T ");
+    const int hour = digits_of(text, at, 2);
+    expect_at(text, at, ":");
+    const int minute = digits_of(text, at, 2);
+    expect_at(text, at, ":");
+    const int second = digits_of(text, at, 2);
+    if (at < text.size() && text[at] == '.')
+    {
+        ++at;
+        while (at < text.size() && std::isdigit(static_cast<unsigned char>(text[at]))) ++at;
+    }
+    int offset = 0;
+    if (at < text.size() && (text[at] == '+' || text[at] == '-'))
+    {
+        const int sign = text[at] == '-' ? -1 : 1;
+        ++at;
+        const int hours = digits_of(text, at, 2);
+        expect_at(text, at, ":");
+        const int minutes = digits_of(text, at, 2);
+        offset = sign * (hours * 60 + minutes);
+    }
+    const std::int64_t days = ripple::detail::days_from_civil(year, static_cast<unsigned>(month),
+                                                              static_cast<unsigned>(day));
+    const std::int64_t local = ((days * 24 + hour) * 60 + minute) * 60 + second;
+    return ripple::Moment{(local - std::int64_t{offset} * 60) * 1000, offset};
+}
+
 ripple::SessionOptions fixture_options()
 {
     ripple::SessionOptions options;
@@ -244,6 +354,9 @@ class Host
     virtual void choose(std::optional<std::uint32_t> index) = 0;
     virtual void answer(const std::optional<ripple::Value::Map>& values) = 0;
     virtual void elapsed() = 0;
+    virtual void begin_countdown() = 0;
+    virtual void expire() = 0;
+    virtual void permit(ripple::PermissionKind kind, bool granted) = 0;
     virtual void set_locale(const std::string& locale) = 0;
     virtual std::optional<std::string> pause() = 0;
     virtual void resume(const std::string& save) = 0;
@@ -257,9 +370,14 @@ class SessionHost : public Host
 {
   public:
     SessionHost(const ripple::Campaign& campaign, ripple::Session session, std::uint64_t seed,
-                Recorder& record)
-        : campaign_(campaign), session_(std::move(session)), seed_(seed), record_(record)
+                Recorder& record, const Told& told)
+        : campaign_(campaign),
+          session_(std::move(session)),
+          seed_(seed),
+          record_(record),
+          told_(told)
     {
+        tell();
     }
     const std::optional<ripple::Effect>& turn() const override { return turn_; }
     void start() override { settle(session_.start()); }
@@ -269,6 +387,12 @@ class SessionHost : public Host
         settle(session_.answer(values));
     }
     void elapsed() override { settle(session_.elapsed()); }
+    void begin_countdown() override { settle(session_.begin_countdown()); }
+    void expire() override { settle(session_.expire()); }
+    void permit(ripple::PermissionKind kind, bool granted) override
+    {
+        settle(session_.permit(kind, granted));
+    }
     void set_locale(const std::string& locale) override { settle(session_.set_locale(locale)); }
     std::optional<std::string> pause() override
     {
@@ -281,12 +405,21 @@ class SessionHost : public Host
         const ripple::Generator generator = session_.generator();
         session_ = ripple::Session::resume(campaign_, save, seed_, fixture_options());
         session_.set_generator(generator);
+        tell();
         settle(session_.start());
     }
     void restart() override { settle(session_.restart()); }
     std::vector<ripple::Entity> entities() override { return session_.entities(); }
 
   private:
+    // Before `start`, so an answer answers nothing; a save carries no yes.
+    void tell()
+    {
+        if (told_.now) session_.set_now(told_.now);
+        for (const auto& [kind, granted] : told_.answered) settle(session_.permit(kind, granted));
+        for (const auto& [kind, typed] : told_.stand_ins) session_.set_stand_in(kind, typed);
+    }
+
     void settle(ripple::Effects batch)
     {
         for (;;)
@@ -305,6 +438,7 @@ class SessionHost : public Host
     ripple::Session session_;
     std::uint64_t seed_;
     Recorder& record_;
+    const Told& told_;
     std::optional<ripple::Effect> turn_;
 };
 
@@ -314,8 +448,8 @@ class PlayerHost : public Host
 {
   public:
     PlayerHost(const ripple::Campaign& campaign, ripple::Session session, std::uint64_t seed,
-               Recorder& record)
-        : campaign_(campaign), seed_(seed), record_(record)
+               Recorder& record, const Told& told)
+        : campaign_(campaign), seed_(seed), record_(record), told_(told)
     {
         make(std::move(session));
     }
@@ -335,6 +469,18 @@ class PlayerHost : public Host
     void elapsed() override
     {
         for (const auto& effect : player_->session().elapsed()) record_(effect);
+    }
+    void begin_countdown() override
+    {
+        run([&] { player_->begin_countdown(); });
+    }
+    void expire() override
+    {
+        run([&] { player_->expire(); });
+    }
+    void permit(ripple::PermissionKind kind, bool granted) override
+    {
+        run([&] { player_->permit(kind, granted); });
     }
     void set_locale(const std::string& locale) override
     {
@@ -369,8 +515,16 @@ class PlayerHost : public Host
         handlers.on_effect = [this](const ripple::Effect& effect) { record_(effect); };
         handlers.on_error = [](const ripple::Failure& failure)
         { ADD_FAILURE() << failure.message; };
+        // The instant through the player's own hook, asked before every verb;
+        // and no countdown of its own — a fixture's moves say when.
+        handlers.moment = [this] { return told_.now; };
+        handlers.countdowns = false;
         player_ = std::make_unique<ripple::Player>(std::move(session), std::move(handlers),
                                                    [this] { return now_; });
+        for (const auto& answer : told_.answered)
+            run([&] { player_->permit(answer.first, answer.second); });
+        for (const auto& [kind, typed] : told_.stand_ins)
+            player_->session().set_stand_in(kind, typed);
     }
     template <class Verb>
     void run(Verb&& verb)
@@ -390,6 +544,7 @@ class PlayerHost : public Host
     const ripple::Campaign& campaign_;
     std::uint64_t seed_;
     Recorder& record_;
+    const Told& told_;
     std::uint64_t now_ = 0;
     std::unique_ptr<ripple::Player> player_;
 };
@@ -411,11 +566,22 @@ Played play(const fs::path& fixture, const Json& input, bool through_player)
     config.options = fixture_options();
     ripple::Session session = ripple::Session::create(campaign, config);
 
+    Told told;
+    if (input.contains("now")) told.now = moment_of(input["now"].get<std::string>());
+    if (input.contains("permit"))
+        for (auto it = input["permit"].begin(); it != input["permit"].end(); ++it)
+            told.answered.emplace_back(kind_of(it.key()), it.value().get<bool>());
+    if (input.contains("standIns"))
+        for (auto it = input["standIns"].begin(); it != input["standIns"].end(); ++it)
+            told.stand_ins.emplace_back(kind_of(it.key()), it.value().get<std::string>());
+
     std::unique_ptr<Host> host;
     if (through_player)
-        host = std::make_unique<PlayerHost>(campaign, std::move(session), config.seed, record);
+        host =
+            std::make_unique<PlayerHost>(campaign, std::move(session), config.seed, record, told);
     else
-        host = std::make_unique<SessionHost>(campaign, std::move(session), config.seed, record);
+        host =
+            std::make_unique<SessionHost>(campaign, std::move(session), config.seed, record, told);
 
     std::optional<std::string> saved;
     host->start();
@@ -450,9 +616,35 @@ Played play(const fs::path& fixture, const Json& input, bool through_player)
         }
         else if (verb == "restart")
             host->restart();
+        // A fixture's clock never runs a countdown out by itself — it waits on
+        // nothing, and a countdown that ran out at once would only ever show
+        // the default. The moves say when.
+        else if (verb == "countdown" || verb == "expire")
+        {
+            if (!host->turn() || !std::holds_alternative<ripple::Show>(*host->turn()))
+                throw std::runtime_error("a move runs a countdown where no passage is showing");
+            if (verb == "countdown")
+                host->begin_countdown();
+            else
+                host->expire();
+        }
+        else if (verb == "permit")
+        {
+            const ripple::PermissionKind kind = kind_of(move["kind"].get<std::string>());
+            const bool granted = move.value("granted", false);
+            auto& answered = told.answered;
+            answered.erase(std::remove_if(answered.begin(), answered.end(),
+                                          [&](const auto& one) { return one.first == kind; }),
+                           answered.end());
+            answered.emplace_back(kind, granted);
+            host->permit(kind, granted);
+        }
+        else
+            throw std::runtime_error("\"" + verb + "\" is not something a reader can do");
     }
-    // The reader has left: the story goes on by itself until it is over.
-    while (!over(host->turn()))
+    // The reader has left: the story goes on by itself until it is over — or,
+    // when nobody answered what it asked before it began, it never begins.
+    while (!over(host->turn()) && !std::holds_alternative<ripple::Permit>(*host->turn()))
     {
         const ripple::Effect& turn = *host->turn();
         if (std::holds_alternative<ripple::Show>(turn))
@@ -517,9 +709,9 @@ void play_all(bool through_player)
         compare(name, play(fixture, input, through_player), read_json(fixture / "expect.json"));
         ++played;
     }
-    // Twenty-four fixtures, three of which need the interpreter.
-    EXPECT_EQ(played + skipped, 24u);
-    EXPECT_EQ(skipped, python ? 0u : 3u);
+    // Thirty-three fixtures, six of which need the interpreter.
+    EXPECT_EQ(played + skipped, 33u);
+    EXPECT_EQ(skipped, python ? 0u : 6u);
 }
 
 }  // namespace

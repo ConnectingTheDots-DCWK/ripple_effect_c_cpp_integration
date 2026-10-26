@@ -5,6 +5,7 @@
 #   conformance   every fixture of the pinned release, through Session and Player
 #   c99           a program in C99 alone, playing a fixture to its end
 #   driver        the soundscape driver, against a speaker that writes down
+#   player        the Player's own clock: countdowns, the time, the permit turn
 #   values        a value through the arena and back
 
 include(FetchContent)
@@ -47,7 +48,8 @@ include(GoogleTest)
 ripple_engine_fixtures(RIPPLE_FIXTURES)
 message(STATUS "Ripple Effect: conformance fixtures in ${RIPPLE_FIXTURES}")
 
-add_executable(ripple_tests conformance/conformance_test.cpp driver/driver_test.cpp values_test.cpp)
+add_executable(ripple_tests conformance/conformance_test.cpp driver/driver_test.cpp
+                            player/player_test.cpp values_test.cpp)
 target_link_libraries(ripple_tests PRIVATE Ripple::cpp GTest::gtest_main
                                            nlohmann_json::nlohmann_json)
 target_compile_definitions(ripple_tests PRIVATE RIPPLE_FIXTURES="${RIPPLE_FIXTURES}")
@@ -69,6 +71,12 @@ if(NOT MSVC)
 endif()
 ripple_effect_copy_runtime(ripple_c99)
 add_test(NAME c99_plays_a_fixture COMMAND ripple_c99 "${RIPPLE_FIXTURES}/the-choir/bundle")
+# A story that counts down, and one that asks before it begins: neither needs
+# the interpreter, so both variants play them.
+add_test(NAME c99_runs_out_a_countdown COMMAND ripple_c99
+                                               "${RIPPLE_FIXTURES}/the-hesitation/bundle" countdown)
+add_test(NAME c99_answers_a_permit COMMAND ripple_c99 "${RIPPLE_FIXTURES}/the-weathervane/bundle"
+                                           permit)
 
 # ripple.hpp with exceptions off, as a game built with -fno-exceptions has it.
 add_executable(ripple_no_exceptions no_exceptions.cpp)

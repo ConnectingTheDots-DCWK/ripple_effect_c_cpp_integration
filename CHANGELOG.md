@@ -3,6 +3,45 @@
 `MAJOR.MINOR` is the Ripple Effect engine contract these bindings bind, and
 `PATCH` is their own. Each version pins one engine release, named here.
 
+## 1.6.0
+
+- **Contract 1.6, Grammar Lich**, pinning engine 1.6.0: what is new for a
+  host in `ripple.h`, bound in `ripple.hpp`. The C++ layer refuses a 1.5
+  header at compile time, and the package is `find_package(RippleEffect 1.6)`.
+- **A story that reads the world asks first.** `Manifest::permissions`; the
+  `Permit` turn, answered with `Session::permit(PermissionKind, bool)` —
+  before `start` too, so a host that remembers its reader's answers never has
+  them asked; `set_now` with a `Moment`, `set_position` with a `Position`,
+  and `set_stand_in`; the `Notice` effect, once per kind and outcome; and
+  `Code::not_permitted` and `Code::stand_in`, thrown as `HostError`.
+  `PermissionKind` takes its numbers from `ripple.h`'s `RipplePermissionKind`.
+  `local_moment()` is this machine's time at its own offset.
+- **A passage may count down.** `Passage::timer`, a `ChoiceTimer`;
+  `Session::begin_countdown` and `expire`; `Code::no_countdown` and
+  `Code::countdown_not_begun`. The `Player` runs one on its own clock from
+  `update()`, as it does a hold, keeps it across a `set_locale` and drops it
+  once the reader chooses, and says where it stands with `countdown()`.
+  `PlayerHandlers::countdowns = false` leaves the timing to the host — a test,
+  or a reader who asked for no time limits.
+- **The `Player` tells the story the time**: `PlayerHandlers::moment`, asked
+  before every verb that can step. And `Player::permit`, `begin_countdown`
+  and `expire`.
+- **A form speaks the reader's language, and may offer fixed answers.**
+  `PromptField` gains `label`, `placeholder`, `optional` and `options`, each a
+  `PromptOption`: the `id` a host answers with, the `label` it shows, the
+  `value` the story is handed.
+- **`Effect` has two more alternatives**, `Permit` and `Notice`, appended:
+  a `std::visit` with no arm for them no longer compiles, which is what the
+  variant is for. The two `countdown.*` callback events and the `W.RT.08` run
+  remark arrive as numbers the engine names, as the others do.
+- **Thirty-three conformance fixtures**, twenty-seven without Python, through
+  `Session` and `Player`, with the fixtures' `now`, `permit` and `standIns`
+  and their `countdown`, `expire` and `permit` moves. The Player's own
+  countdown and the permit turn are tested on a clock that is a number; the
+  C99 program runs out a countdown and answers a permit.
+- **The example players** ask before a story reads the clock or the
+  location, and the C++ one runs countdowns on the Player's clock.
+
 ## 1.5.2
 
 - **iOS**, pinning the same engine 1.5.3: this repository's CMake path for

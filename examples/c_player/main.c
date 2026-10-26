@@ -6,6 +6,12 @@
  * Shows each passage and its choices, reads a number, and answers a form by
  * leaving it. A hold is waited out for real; everything the engine hands out
  * goes back through ripple_free(). The loop is the one every C host writes.
+ *
+ * A story that reads the clock or where the reader is asks first, and is told
+ * the time if the answer is yes; this player knows no position. It waits for
+ * the reader as long as they like, so it runs no countdown: a host that does
+ * calls ripple_session_begin_countdown() and ripple_session_expire() from its
+ * own clock (examples/cpp_player has the Player do it).
  */
 #include <ripple/ripple.h>
 
@@ -36,6 +42,54 @@ static int refused(const char* what, RippleResult code, const RippleError* error
             error ? error->message.ptr : "");
     ripple_free(error);
     return 1;
+}
+
+/* Prints what a read of the world got instead of the real value. */
+static void print_notices(const RippleEffects* batch)
+{
+    size_t i;
+    for (i = 0; i < batch->count; i++)
+    {
+        const RippleEffect* effect = &batch->items[i];
+        if (effect->kind == RIPPLE_EFFECT_KIND_NOTICE)
+        {
+            printf("  [%.*s] %.*s\n", (int)effect->data.notice->code.len,
+                   effect->data.notice->code.ptr, (int)effect->data.notice->message.len,
+                   effect->data.notice->message.ptr);
+        }
+    }
+}
+
+/* Asks about each kind the story reads; each answer but the last answers
+ * nothing, and the last begins the story. */
+static RippleResult ask_permits(RippleSession* session, const RipplePermit* permit,
+                                const RippleEffects** next, const RippleError** error)
+{
+    RippleResult code = RIPPLE_SUCCESS;
+    size_t i;
+    for (i = 0; i < permit->kind_count && code == RIPPLE_SUCCESS; i++)
+    {
+        char line[16];
+        int granted;
+        const int location = permit->kinds[i] == RIPPLE_PERMISSION_KIND_LOCATION;
+        printf("May this story read %s? [y/N] ", location ? "where you are" : "the date and time");
+        fflush(stdout);
+        granted = fgets(line, sizeof line, stdin) != NULL && (line[0] == 'y' || line[0] == 'Y');
+        ripple_free(*next);
+        *next = NULL;
+        code = ripple_session_permit(session, permit->kinds[i], granted != 0, next, error);
+    }
+    return code;
+}
+
+/* This machine's clock, at UTC: a C99 program has no portable way to its
+ * offset, which a host that has one passes instead of 0. */
+static void tell_time(RippleSession* session)
+{
+    RippleMoment now;
+    now.utc_ms = (int64_t)time(NULL) * 1000;
+    now.offset_minutes = 0;
+    ripple_session_set_now(session, &now, NULL);
 }
 
 static uint32_t ask_choice(const RipplePassage* passage)
@@ -110,13 +164,19 @@ int main(int argc, char** argv)
         return refused("create", code, error);
     }
 
+    tell_time(session);
     code = ripple_session_start(session, &batch, &error);
     while (code == RIPPLE_SUCCESS && batch != NULL && batch->count > 0)
     {
         const RippleEffect* turn = &batch->items[batch->count - 1];
         const RippleEffects* next = NULL;
+        print_notices(batch);
+        tell_time(session);
         switch (turn->kind)
         {
+            case RIPPLE_EFFECT_KIND_PERMIT:
+                code = ask_permits(session, turn->data.permit, &next, &error);
+                break;
             case RIPPLE_EFFECT_KIND_SHOW:
                 code = ripple_session_choose(session, ask_choice(turn->data.show), &next, &error);
                 break;
