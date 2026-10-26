@@ -278,15 +278,44 @@ ripple::PermissionKind kind_of(const std::string& wire)
     throw std::runtime_error("\"" + wire + "\" is not a kind a story may ask for");
 }
 
+// `count` decimal digits of `text` from `at`, which then points past them.
+// Read by hand rather than with `sscanf`, which MSVC deprecates (C4996).
+int digits_of(const std::string& text, std::size_t& at, std::size_t count)
+{
+    int value = 0;
+    for (std::size_t end = at + count; at < end; ++at)
+    {
+        if (at >= text.size() || !std::isdigit(static_cast<unsigned char>(text[at])))
+            throw std::runtime_error("now is not an ISO 8601 time: " + text);
+        value = value * 10 + (text[at] - '0');
+    }
+    return value;
+}
+
+// `expected` at `at`, then past it.
+void expect_at(const std::string& text, std::size_t& at, const char* expected)
+{
+    if (at >= text.size() || std::string(expected).find(text[at]) == std::string::npos)
+        throw std::runtime_error("now is not an ISO 8601 time: " + text);
+    ++at;
+}
+
 // A fixture's `now`, ISO 8601 with its offset — or at UTC without one, as
 // the engine's runner reads it: `2026-10-19T18:30:00+02:00`.
 ripple::Moment moment_of(const std::string& text)
 {
-    int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, consumed = 0;
-    if (std::sscanf(text.c_str(), "%4d-%2d-%2d%*1[T ]%2d:%2d:%2d%n", &year, &month, &day, &hour,
-                    &minute, &second, &consumed) != 6)
-        throw std::runtime_error("now is not an ISO 8601 time: " + text);
-    std::size_t at = static_cast<std::size_t>(consumed);
+    std::size_t at = 0;
+    const int year = digits_of(text, at, 4);
+    expect_at(text, at, "-");
+    const int month = digits_of(text, at, 2);
+    expect_at(text, at, "-");
+    const int day = digits_of(text, at, 2);
+    expect_at(text, at, "T ");
+    const int hour = digits_of(text, at, 2);
+    expect_at(text, at, ":");
+    const int minute = digits_of(text, at, 2);
+    expect_at(text, at, ":");
+    const int second = digits_of(text, at, 2);
     if (at < text.size() && text[at] == '.')
     {
         ++at;
@@ -295,10 +324,12 @@ ripple::Moment moment_of(const std::string& text)
     int offset = 0;
     if (at < text.size() && (text[at] == '+' || text[at] == '-'))
     {
-        int hours = 0, minutes = 0;
-        if (std::sscanf(text.c_str() + at + 1, "%2d:%2d", &hours, &minutes) != 2)
-            throw std::runtime_error("now has an unreadable offset: " + text);
-        offset = (text[at] == '-' ? -1 : 1) * (hours * 60 + minutes);
+        const int sign = text[at] == '-' ? -1 : 1;
+        ++at;
+        const int hours = digits_of(text, at, 2);
+        expect_at(text, at, ":");
+        const int minutes = digits_of(text, at, 2);
+        offset = sign * (hours * 60 + minutes);
     }
     const std::int64_t days = ripple::detail::days_from_civil(year, static_cast<unsigned>(month),
                                                               static_cast<unsigned>(day));
