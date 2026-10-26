@@ -46,6 +46,7 @@ jobs:
         with:
           name: notes
           path: notes.md
+          retention-days: 7
 
   build:
     needs: preflight
