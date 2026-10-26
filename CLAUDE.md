@@ -31,10 +31,11 @@ pre-commit — and `mise install` puts the lot on a machine; `mise run doctor`
 *floor* is not that pin: it is `cmake_minimum_required` (3.24), what a
 consumer needs, and the platform floors are `CMakePresets.json`'s. A workflow
 that needs a pinned version installs it with `jdx/mise-action` or reads it
-through `scripts/mise_pin.sh`. `cargo` too, only with `RIPPLE_ENGINE_TREE`. Until `engine.json` pins a release, **every
-configure needs `RIPPLE_ENGINE_TREE=<a ripple_effect checkout>`**, which
-builds the engine's `ripple-capi` in that tree and marks the result
-UNVERIFIED; the presets read it from the environment.
+through `scripts/mise_pin.sh`. A configure downloads the pinned engine
+(`engine.json`) and checks its digest. `RIPPLE_ENGINE_TREE=<a ripple_effect
+checkout>` is for an engine not yet released: it builds the engine's
+`ripple-capi` in that tree with `cargo`, the one time cargo is needed, and
+marks the result UNVERIFIED; the presets read it from the environment.
 
 The hooks: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
 A commit pays for the secret scan (TruffleHog; a clone needs the binary),

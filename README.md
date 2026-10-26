@@ -84,7 +84,6 @@ contract, `MAJOR.MINOR`, and a `PATCH` of its own: 1.6.0 binds contract 1.6.
 ## Working on it
 
 ```sh
-export RIPPLE_ENGINE_TREE=<a ripple_effect checkout>   # until a release is pinned
 cmake --preset linux-clang && cmake --build --preset linux-clang && ctest --preset linux-clang
 ```
 
