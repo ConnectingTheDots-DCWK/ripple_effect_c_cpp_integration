@@ -93,6 +93,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "ripple_effect_c_cpp_integration $VERSION"
           git push origin "v$VERSION"
+          # From here a failure takes the tag back, and the release if it got
+          # that far: the preflight refuses a version already tagged, so a tag
+          # left behind would stop the run from being dispatched again.
+          trap 'gh release delete "v$VERSION" --yes --cleanup-tag || git push --delete origin "v$VERSION"' ERR
           git archive --format=tar.gz --prefix="ripple_effect_c_cpp_integration-$VERSION/" \
             -o "ripple_effect_c_cpp_integration-$VERSION.tar.gz" "v$VERSION"
           sha256sum "ripple_effect_c_cpp_integration-$VERSION.tar.gz" > SHA256SUMS
