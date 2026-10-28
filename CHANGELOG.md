@@ -5,7 +5,7 @@
 
 ## 1.6.0
 
-- **Contract 1.6, Grammar Lich**, pinning engine 1.6.0: what is new for a
+- **Contract 1.6, Grammar Lich**, pinning engine 1.6.1: what is new for a
   host in `ripple.h`, bound in `ripple.hpp`. The C++ layer refuses a 1.5
   header at compile time, and the package is `find_package(RippleEffect 1.6)`.
 - **A story that reads the world asks first.** `Manifest::permissions`; the
