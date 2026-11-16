@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The versions are mise.toml's, so CI checks with what the hooks run.
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
@@ -46,7 +46,7 @@ jobs:
     outputs:
       pinned: ${{ steps.pin.outputs.pinned }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: pin
         name: Is a release pinned?
         run: |
@@ -77,8 +77,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/msvc-env
         if: runner.os == 'Windows'
       # After the developer prompt, whose PATH carries Visual Studio's own
       # CMake and Ninja: mise's are put in front of them.
@@ -86,7 +86,7 @@ jobs:
         with:
           version: 2026.10.2
           install_args: aqua:Kitware/CMake aqua:ninja-build/ninja
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
           key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
@@ -120,8 +120,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
         with:
           path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
           key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # CMake and Ninja at mise.toml's versions rather than the image's.
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
@@ -180,8 +180,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
         with:
           path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
           key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
