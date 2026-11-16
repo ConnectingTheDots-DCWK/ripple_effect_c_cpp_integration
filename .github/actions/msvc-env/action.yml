@@ -1,0 +1,30 @@
+# The Visual Studio developer prompt, for the presets' Ninja: what
+# ilammy/msvc-dev-cmd did, in one step of our own. That action is still on
+# Node 20 with no release moving it (its last was v1.13.0, January 2024), and
+# what it does is small enough to own: find Visual Studio with vswhere, run
+# vcvarsall for x64, and export every variable the batch file changed.
+name: MSVC environment
+description: Exports the x64 Visual Studio developer environment to later steps.
+runs:
+  using: composite
+  steps:
+    - shell: pwsh
+      run: |
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vs = & $vswhere -latest -products * `
+          -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+          -property installationPath
+        if (-not $vs) { throw "vswhere found no Visual Studio with the x64 C++ tools" }
+        $bat = Join-Path $vs 'VC\Auxiliary\Build\vcvarsall.bat'
+        $before = @{}
+        Get-ChildItem env: | ForEach-Object { $before[$_.Name] = $_.Value }
+        $lines = cmd /c "`"$bat`" x64 >nul && set"
+        if ($LASTEXITCODE -ne 0) { throw "vcvarsall.bat x64 failed" }
+        foreach ($line in $lines) {
+          if ($line -match '^([^=]+)=(.*)$') {
+            $name, $value = $matches[1], $matches[2]
+            if ($before[$name] -ne $value) {
+              "$name=$value" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            }
+          }
+        }
