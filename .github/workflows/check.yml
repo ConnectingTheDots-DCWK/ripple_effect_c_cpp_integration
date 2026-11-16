@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # The versions are mise.toml's, so CI checks with what the hooks run.
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           version: 2026.10.2
           install_args: python aqua:astral-sh/uv pipx:clang-format pipx:cmakelang
@@ -82,7 +82,7 @@ jobs:
         if: runner.os == 'Windows'
       # After the developer prompt, whose PATH carries Visual Studio's own
       # CMake and Ninja: mise's are put in front of them.
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           version: 2026.10.2
           install_args: aqua:Kitware/CMake aqua:ninja-build/ninja
@@ -126,7 +126,7 @@ jobs:
           path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
           key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
       # CMake and Ninja at mise.toml's versions rather than the image's.
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           version: 2026.10.2
           install_args: aqua:Kitware/CMake aqua:ninja-build/ninja
@@ -150,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # CMake and Ninja at mise.toml's versions rather than the image's.
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           version: 2026.10.2
           install_args: aqua:Kitware/CMake aqua:ninja-build/ninja
@@ -186,7 +186,7 @@ jobs:
           path: out/build/${{ matrix.preset }}/_ripple_engine/downloads
           key: engine-${{ matrix.preset }}-${{ hashFiles('engine.json') }}
       # CMake and Ninja at mise.toml's versions rather than the image's.
-      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           version: 2026.10.2
           install_args: aqua:Kitware/CMake aqua:ninja-build/ninja
